@@ -16,7 +16,10 @@ export enum EventType {
 export interface Teacher {
   id: string;
   name: string;
-  password?: string; // Nueva contraseña personal
+  password?: string; 
+  photoUrl?: string;
+  email?: string;
+  phone?: string;
 }
 
 export interface CourseModule {
@@ -27,9 +30,11 @@ export interface CourseModule {
   year: number; // 1 or 2
   pdfUrl?: string; // Enlace a la Programación
   evaluationUrl?: string; // Enlace al resumen de evaluación
-  teacherPhotoUrl?: string; // Nuevo: Foto del docente
-  teacherEmail?: string;    // Nuevo: Email corporativo
-  teacherPhone?: string;    // Nuevo: Teléfono de contacto
+  // Estos campos se mantendrán temporalmente en la interfaz para compatibilidad,
+  // pero los datos reales ahora vendrán del objeto Teacher
+  teacherPhotoUrl?: string; 
+  teacherEmail?: string;    
+  teacherPhone?: string;    
 }
 
 export interface CalendarEvent {
@@ -81,6 +86,7 @@ export interface AppData {
   events: CalendarEvent[];
   teachers: Teacher[];
   communications: CommunicationMessage[];
+  centerLogo?: string; // Nuevo campo para el logo del centro
 }
 
 export interface UserSession {

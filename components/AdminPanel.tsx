@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { AppData, CycleId, EventType, CourseModule, CalendarEvent, Trimester, Teacher, CommunicationMessage } from '../types';
 import { EVENT_LABELS, EVENT_THEMES, EVENT_COLORS } from '../constants';
-import { Settings, Book, Calendar, LogOut, Plus, Trash2, CheckCircle, Edit, X, Clock, Eye, ChevronDown, ChevronUp, MapPin, AlertTriangle, AlertCircle, FileText, Link as LinkIcon, ClipboardList, Image, Mail, Phone, User, ArrowDownAZ, CalendarDays, TreePine, VenetianMask, Sun, MessageSquare, Users, Save, Send, Reply, Lock, EyeOff } from 'lucide-react';
+import { Settings, Book, Calendar, LogOut, Plus, Trash2, CheckCircle, Edit, X, Clock, Eye, ChevronDown, ChevronUp, MapPin, AlertTriangle, AlertCircle, FileText, Link as LinkIcon, ClipboardList, Image, Mail, Phone, User, ArrowDownAZ, CalendarDays, TreePine, VenetianMask, Sun, MessageSquare, Users, Save, Send, Reply, Lock, EyeOff, Camera, Upload, RefreshCw, Palette } from 'lucide-react';
 
-export type AdminTab = 'config' | 'team' | 'modules' | 'events' | 'communication';
+export type AdminTab = 'config' | 'team' | 'modules' | 'events' | 'communication' | 'personalization';
 
 interface AdminPanelProps {
   data: AppData;
@@ -200,9 +200,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onLogout
   const [editingModule, setEditingModule] = useState<CourseModule | null>(null);
   const [editModName, setEditModName] = useState('');
   const [editModTeacher, setEditModTeacher] = useState('');
-  const [editModPhoto, setEditModPhoto] = useState('');
-  const [editModEmail, setEditModEmail] = useState('');
-  const [editModPhone, setEditModPhone] = useState('');
   const [editModPdf, setEditModPdf] = useState('');
   const [editModEval, setEditModEval] = useState('');
 
@@ -228,13 +225,23 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onLogout
   const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
   const [editTeacherName, setEditTeacherName] = useState('');
   const [editTeacherPassword, setEditTeacherPassword] = useState('');
+  const [editTeacherPhoto, setEditTeacherPhoto] = useState('');
+  const [editTeacherEmail, setEditTeacherEmail] = useState('');
+  const [editTeacherPhone, setEditTeacherPhone] = useState('');
   const [showEditPassword, setShowEditPassword] = useState(false);
+  const [isWebcamActive, setIsWebcamActive] = useState(false);
+  const webcamVideoRef = useRef<HTMLVideoElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Communication State
   const [msgReceiverId, setMsgReceiverId] = useState('');
   const [msgContent, setMsgContent] = useState('');
   const [replyingToId, setReplyingToId] = useState<string | null>(null);
   const [replyContent, setReplyContent] = useState('');
+
+  // Personalization State
+  const logoFileInputRef = useRef<HTMLInputElement>(null);
+  const [isCapturingLogo, setIsCapturingLogo] = useState(false);
 
   const visibleModules = data.modules.filter(m => m.cycleId === activeCycleTab);
   
@@ -291,9 +298,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onLogout
     setEditingModule(module);
     setEditModName(module.name);
     setEditModTeacher(module.teacherName);
-    setEditModPhoto(module.teacherPhotoUrl || '');
-    setEditModEmail(module.teacherEmail || '');
-    setEditModPhone(module.teacherPhone || '');
     setEditModPdf(module.pdfUrl || '');
     setEditModEval(module.evaluationUrl || '');
   };
@@ -302,7 +306,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onLogout
     e.preventDefault();
     if (!editingModule) return;
     const updatedModules = data.modules.map(m => 
-      m.id === editingModule.id ? { ...m, name: editModName, teacherName: editModTeacher, teacherPhotoUrl: editModPhoto, teacherEmail: editModEmail, teacherPhone: editModPhone, pdfUrl: editModPdf, evaluationUrl: editModEval } : m
+      m.id === editingModule.id ? { ...m, name: editModName, teacherName: editModTeacher, pdfUrl: editModPdf, evaluationUrl: editModEval } : m
     );
     onUpdate({ ...data, modules: updatedModules });
     showNotification("Módulo actualizado");
@@ -322,17 +326,103 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onLogout
     setEditingTeacher(teacher);
     setEditTeacherName(teacher.name);
     setEditTeacherPassword(teacher.password || '');
+    setEditTeacherPhoto(teacher.photoUrl || '');
+    setEditTeacherEmail(teacher.email || '');
+    setEditTeacherPhone(teacher.phone || '');
   };
 
   const handleSaveTeacherChanges = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingTeacher) return;
     const updatedTeachers = data.teachers.map(t => 
-      t.id === editingTeacher.id ? { ...t, name: editTeacherName, password: editTeacherPassword } : t
+      t.id === editingTeacher.id ? { 
+        ...t, 
+        name: editTeacherName, 
+        password: editTeacherPassword,
+        photoUrl: editTeacherPhoto,
+        email: editTeacherEmail,
+        phone: editTeacherPhone
+      } : t
     );
     onUpdate({ ...data, teachers: updatedTeachers });
     showNotification("Docente actualizado");
+    stopWebcam();
     setEditingTeacher(null);
+  };
+
+  const startWebcam = async () => {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 400, height: 400 } });
+        if (webcamVideoRef.current) {
+            webcamVideoRef.current.srcObject = stream;
+            setIsWebcamActive(true);
+        }
+    } catch (err) {
+        showNotification("No se pudo acceder a la cámara", "error");
+        console.error(err);
+    }
+  };
+
+  const stopWebcam = () => {
+    if (webcamVideoRef.current && webcamVideoRef.current.srcObject) {
+        const stream = webcamVideoRef.current.srcObject as MediaStream;
+        stream.getTracks().forEach(track => track.stop());
+        webcamVideoRef.current.srcObject = null;
+    }
+    setIsWebcamActive(false);
+  };
+
+  const capturePhoto = () => {
+    if (webcamVideoRef.current) {
+        const canvas = document.createElement('canvas');
+        canvas.width = webcamVideoRef.current.videoWidth;
+        canvas.height = webcamVideoRef.current.videoHeight;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+            ctx.drawImage(webcamVideoRef.current, 0, 0);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+            
+            if (isCapturingLogo) {
+                onUpdate({ ...data, centerLogo: dataUrl });
+                showNotification("Logotipo actualizado correctamente");
+                setIsCapturingLogo(false);
+            } else {
+                setEditTeacherPhoto(dataUrl);
+            }
+            stopWebcam();
+        }
+    }
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+        if (file.size > 2 * 1024 * 1024) { // 2MB limit for base64 storage
+            showNotification("La imagen es demasiado grande (máx 2MB)", "error");
+            return;
+        }
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setEditTeacherPhoto(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+    }
+  };
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+        if (file.size > 2 * 1024 * 1024) {
+            showNotification("La imagen es demasiado grande (máx 2MB)", "error");
+            return;
+        }
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            onUpdate({ ...data, centerLogo: reader.result as string });
+            showNotification("Logotipo actualizado correctamente");
+        };
+        reader.readAsDataURL(file);
+    }
   };
 
   const confirmDeleteTeacher = (id: string) => {
@@ -543,8 +633,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onLogout
       <div className="max-w-7xl mx-auto px-4 py-4 w-full flex-none">
         <div className="bg-white rounded-2xl shadow-sm border border-emerald-100 p-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
-             <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center border border-emerald-200"><User className="w-5 h-5 text-emerald-700" /></div>
-             <div><h1 className="text-lg font-black text-slate-800 leading-none">Panel de Gestión</h1><p className="text-xs text-slate-500 mt-1">Docente: <span className="text-emerald-700 font-bold">{currentTeacherName}</span></p></div>
+             <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center border border-emerald-200 overflow-hidden">
+                {currentUser?.photoUrl ? (
+                    <img src={currentUser.photoUrl} alt="Perfil" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                ) : (
+                    <User className="w-5 h-5 text-emerald-700" />
+                )}
+             </div>
+             <div className="hidden sm:block">
+                <h1 className="text-lg font-black text-slate-800 leading-none">Panel de Gestión</h1>
+                <p className="text-[10px] text-slate-500 mt-1 uppercase tracking-wider font-bold">
+                    {isSuperAdmin ? 'Super Administrador' : `Docente: ${currentTeacherName}`}
+                </p>
+             </div>
           </div>
           <div className="flex items-center gap-3">
              <div className="relative" ref={previewMenuRef}>
@@ -569,6 +670,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onLogout
             <TabButton id="modules" label="Módulos" icon={Book} />
             <TabButton id="events" label="Eventos" icon={Calendar} />
             <TabButton id="communication" label="Comunicación" icon={MessageSquare} />
+            {isSuperAdmin && <TabButton id="personalization" label="Personalización" icon={Palette} />}
           </div>
 
           <div className="flex-1 md:overflow-hidden overflow-auto relative p-4 flex flex-col">
@@ -711,7 +813,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onLogout
                               return (
                               <div key={t.id} className="p-4 bg-white border border-slate-100 rounded-xl flex items-center justify-between shadow-sm transition-all hover:border-emerald-300">
                                   <div className="flex items-center gap-3 min-w-0">
-                                      <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs shrink-0">{t.name.charAt(0)}</div>
+                                      {t.photoUrl ? (
+                                          <img 
+                                              src={t.photoUrl} 
+                                              alt={t.name} 
+                                              className="w-8 h-8 rounded-full object-cover border border-emerald-100 shrink-0" 
+                                              referrerPolicy="no-referrer" 
+                                          />
+                                      ) : (
+                                          <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-[10px] shrink-0">{t.name.charAt(0)}</div>
+                                      )}
                                       <span className="font-bold text-slate-700 text-sm truncate">{t.name}</span>
                                   </div>
                                   <div className="flex items-center gap-2 shrink-0">
@@ -739,6 +850,60 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onLogout
                                   <button onClick={() => setEditingTeacher(null)}><X className="w-4 h-4 text-slate-400"/></button>
                               </div>
                               <form onSubmit={handleSaveTeacherChanges} className="p-6 space-y-4">
+                                  <div className="flex flex-col items-center gap-4 py-2">
+                                      <div className="relative group">
+                                          <div className="w-24 h-24 rounded-full border-4 border-emerald-100 overflow-hidden bg-slate-100 flex items-center justify-center shadow-inner relative">
+                                              {editTeacherPhoto ? (
+                                                  <img src={editTeacherPhoto} alt="Preview" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                              ) : (
+                                                  <User className="w-10 h-10 text-slate-300" />
+                                              )}
+                                              {isWebcamActive && (
+                                                  <video ref={webcamVideoRef} autoPlay playsInline className="absolute inset-0 w-full h-full object-cover z-20" />
+                                              )}
+                                          </div>
+                                          {!isWebcamActive && (
+                                              <div className="absolute -bottom-1 -right-1 flex gap-1">
+                                                  <button 
+                                                      type="button"
+                                                      onClick={() => fileInputRef.current?.click()}
+                                                      className="p-2 bg-emerald-600 text-white rounded-full shadow-lg hover:bg-emerald-700 transition transform hover:scale-110"
+                                                      title="Subir foto"
+                                                  >
+                                                      <Upload className="w-3 h-3" />
+                                                  </button>
+                                                  <button 
+                                                      type="button"
+                                                      onClick={startWebcam}
+                                                      className="p-2 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition transform hover:scale-110"
+                                                      title="Usar cámara"
+                                                  >
+                                                      <Camera className="w-3 h-3" />
+                                                  </button>
+                                              </div>
+                                          )}
+                                      </div>
+                                      
+                                      {isWebcamActive && (
+                                          <div className="flex gap-2">
+                                              <button type="button" onClick={capturePhoto} className="bg-emerald-600 text-white px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition flex items-center gap-2">
+                                                  <Camera className="w-3 h-3"/> Capturar
+                                              </button>
+                                              <button type="button" onClick={stopWebcam} className="bg-slate-500 text-white px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-slate-600 transition flex items-center gap-2">
+                                                  Cancelar
+                                              </button>
+                                          </div>
+                                      )}
+                                      
+                                      <input 
+                                          type="file" 
+                                          ref={fileInputRef} 
+                                          className="hidden" 
+                                          accept="image/*" 
+                                          onChange={handleFileUpload} 
+                                      />
+                                  </div>
+
                                   <div>
                                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Nombre Completo</label>
                                       <input 
@@ -771,8 +936,28 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onLogout
                                       </div>
                                       <p className="text-[9px] text-slate-400 mt-1">Esta clave será necesaria para el Acceso Docente.</p>
                                   </div>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                      <div>
+                                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Email Corporativo</label>
+                                          <input 
+                                              className="w-full p-3 rounded-xl border-2 border-slate-100 text-sm font-bold bg-white text-slate-800 focus:border-emerald-500 outline-none transition" 
+                                              placeholder="ejemplo@cifpfelomonzon.es"
+                                              value={editTeacherEmail} 
+                                              onChange={e => setEditTeacherEmail(e.target.value)} 
+                                          />
+                                      </div>
+                                      <div>
+                                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Teléfono</label>
+                                          <input 
+                                              className="w-full p-3 rounded-xl border-2 border-slate-100 text-sm font-bold bg-white text-slate-800 focus:border-emerald-500 outline-none transition" 
+                                              placeholder="Número de contacto..."
+                                              value={editTeacherPhone} 
+                                              onChange={e => setEditTeacherPhone(e.target.value)} 
+                                          />
+                                      </div>
+                                  </div>
                                   <div className="pt-2">
-                                      <button type="submit" className="w-full bg-emerald-600 text-white py-3 rounded-xl font-black uppercase tracking-widest text-[10px] shadow-lg hover:bg-emerald-700 transition">
+                                      <button type="submit" className="w-full bg-emerald-600 text-white py-3 rounded-xl font-black uppercase tracking-widest text-[10px] shadow-lg hover:bg-emerald-700 transition" disabled={isWebcamActive}>
                                           Guardar Cambios
                                       </button>
                                   </div>
@@ -796,22 +981,33 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onLogout
                             <div className="flex-1 h-px bg-slate-200"></div>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            {visibleModules.filter(m => m.year === 1).map(m => (
+                            {visibleModules.filter(m => m.year === 1).map(m => {
+                                const moduleTeacher = data.teachers.find(t => t.name === m.teacherName);
+                                return (
                                 <div key={m.id} className="p-3 border-2 rounded-2xl shadow-sm flex items-center justify-between transition-all hover:shadow-md bg-blue-50/40 border-blue-100 hover:border-blue-300">
                                     <div className="flex gap-3 items-center min-w-0">
-                                        <div className="w-8 h-8 rounded-lg flex items-center justify-center font-black text-white shrink-0 shadow-sm bg-blue-600 text-xs">1º</div>
+                                        {moduleTeacher?.photoUrl ? (
+                                            <img 
+                                                src={moduleTeacher.photoUrl} 
+                                                alt={m.teacherName} 
+                                                className="w-8 h-8 rounded-full object-cover border border-blue-200 shrink-0 shadow-sm" 
+                                                referrerPolicy="no-referrer" 
+                                            />
+                                        ) : (
+                                            <div className="w-8 h-8 rounded-lg flex items-center justify-center font-black text-white shrink-0 shadow-sm bg-blue-600 text-xs">1º</div>
+                                        )}
                                         <div className="min-w-0">
                                             <h4 className="font-bold text-slate-800 leading-tight text-xs truncate" title={m.name}>{m.name}</h4>
                                             <p className="text-[10px] text-slate-500 truncate">Docente: <span className="font-bold text-blue-700">{m.teacherName}</span></p>
                                         </div>
                                     </div>
-                                    {isSuperAdmin && (
+                                    {(isSuperAdmin || m.teacherName === currentTeacherName) && (
                                     <button onClick={() => openEditModule(m)} className="p-2 text-blue-600 hover:bg-blue-100 rounded-xl transition shrink-0" title="Configurar Módulo">
                                         <Edit className="w-4 h-4"/>
                                     </button>
                                     )}
                                 </div>
-                            ))}
+                            )})}
                         </div>
                     </div>
 
@@ -821,22 +1017,33 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onLogout
                             <div className="flex-1 h-px bg-slate-200"></div>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            {visibleModules.filter(m => m.year === 2).map(m => (
+                            {visibleModules.filter(m => m.year === 2).map(m => {
+                                const moduleTeacher = data.teachers.find(t => t.name === m.teacherName);
+                                return (
                                 <div key={m.id} className="p-3 border-2 rounded-2xl shadow-sm flex items-center justify-between transition-all hover:shadow-md bg-emerald-50/40 border-emerald-100 hover:border-emerald-300">
                                     <div className="flex gap-3 items-center min-w-0">
-                                        <div className="w-8 h-8 rounded-lg flex items-center justify-center font-black text-white shrink-0 shadow-sm bg-emerald-600 text-xs">2º</div>
+                                        {moduleTeacher?.photoUrl ? (
+                                            <img 
+                                                src={moduleTeacher.photoUrl} 
+                                                alt={m.teacherName} 
+                                                className="w-8 h-8 rounded-full object-cover border border-emerald-200 shrink-0 shadow-sm" 
+                                                referrerPolicy="no-referrer" 
+                                            />
+                                        ) : (
+                                            <div className="w-8 h-8 rounded-lg flex items-center justify-center font-black text-white shrink-0 shadow-sm bg-emerald-600 text-xs">2º</div>
+                                        )}
                                         <div className="min-w-0">
                                             <h4 className="font-bold text-slate-800 leading-tight text-xs truncate" title={m.name}>{m.name}</h4>
                                             <p className="text-[10px] text-slate-500 truncate">Docente: <span className="font-bold text-emerald-700">{m.teacherName}</span></p>
                                         </div>
                                     </div>
-                                    {isSuperAdmin && (
+                                    {(isSuperAdmin || m.teacherName === currentTeacherName) && (
                                     <button onClick={() => openEditModule(m)} className="p-2 text-emerald-600 hover:bg-emerald-100 rounded-xl transition shrink-0" title="Configurar Módulo">
                                         <Edit className="w-4 h-4"/>
                                     </button>
                                     )}
                                 </div>
-                            ))}
+                            )})}
                         </div>
                     </div>
                 </div>
@@ -850,21 +1057,26 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onLogout
                             <button onClick={() => setEditingModule(null)}><X className="w-5 h-5 text-slate-400"/></button>
                         </div>
                         <form onSubmit={handleSaveModuleChanges} className="p-8 space-y-5 max-h-[70vh] overflow-y-auto custom-scrollbar">
-                            <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Nombre del módulo</label><input className="w-full p-4 rounded-xl border-2 border-slate-100 text-sm font-bold bg-white text-slate-800 focus:border-emerald-500 outline-none transition" value={editModName} onChange={e => setEditModName(e.target.value)} /></div>
-                            <div>
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Asignar Docente</label>
-                                <select className="w-full p-4 rounded-xl border-2 border-slate-100 text-sm font-bold bg-white text-slate-800 focus:border-emerald-500 outline-none" value={editModTeacher} onChange={e => setEditModTeacher(e.target.value)}>
-                                    <option value="Docente por asignar">Docente por asignar</option>
-                                    {data.teachers.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
-                                </select>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Email</label><input className="w-full p-4 rounded-xl border-2 border-slate-100 text-xs font-medium bg-white text-slate-800" value={editModEmail} onChange={e => setEditModEmail(e.target.value)} /></div>
-                                <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Teléfono</label><input className="w-full p-4 rounded-xl border-2 border-slate-100 text-xs font-medium bg-white text-slate-800" value={editModPhone} onChange={e => setEditModPhone(e.target.value)} /></div>
-                            </div>
-                            <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Foto URL (Google Drive)</label><input className="w-full p-4 rounded-xl border-2 border-slate-100 text-xs font-medium bg-white text-slate-800" value={editModPhoto} onChange={e => setEditModPhoto(e.target.value)} /></div>
-                            <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">URL Programación (PDF)</label><input className="w-full p-4 rounded-xl border-2 border-slate-100 text-xs font-medium bg-white text-slate-800" value={editModPdf} onChange={e => setEditModPdf(e.target.value)} /></div>
-                            <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">URL Evaluación (PDF)</label><input className="w-full p-4 rounded-xl border-2 border-slate-100 text-xs font-medium bg-white text-slate-800" value={editModEval} onChange={e => setEditModEval(e.target.value)} /></div>
+                            {isSuperAdmin && (
+                                <>
+                                    <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Nombre del módulo</label><input className="w-full p-4 rounded-xl border-2 border-slate-100 text-sm font-bold bg-white text-slate-800 focus:border-emerald-500 outline-none transition" value={editModName} onChange={e => setEditModName(e.target.value)} /></div>
+                                    <div>
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Asignar Docente</label>
+                                        <select className="w-full p-4 rounded-xl border-2 border-slate-100 text-sm font-bold bg-white text-slate-800 focus:border-emerald-500 outline-none" value={editModTeacher} onChange={e => setEditModTeacher(e.target.value)}>
+                                            <option value="Docente por asignar">Docente por asignar</option>
+                                            {data.teachers.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
+                                        </select>
+                                    </div>
+                                </>
+                            )}
+                            {!isSuperAdmin && (
+                                <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
+                                    <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">Módulo Seleccionado</p>
+                                    <p className="text-sm font-bold text-slate-800">{editModName}</p>
+                                </div>
+                            )}
+                            <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">URL Programación (PDF)</label><input className="w-full p-4 rounded-xl border-2 border-slate-100 text-xs font-medium bg-white text-slate-800 focus:border-emerald-500 outline-none" value={editModPdf} onChange={e => setEditModPdf(e.target.value)} placeholder="https://..." /></div>
+                            <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">URL Evaluación (PDF)</label><input className="w-full p-4 rounded-xl border-2 border-slate-100 text-xs font-medium bg-white text-slate-800 focus:border-emerald-500 outline-none" value={editModEval} onChange={e => setEditModEval(e.target.value)} placeholder="https://..." /></div>
                         </form>
                         <div className="p-6 bg-slate-50 border-t flex justify-end gap-3">
                              <button onClick={() => setEditingModule(null)} className="px-6 py-2 rounded-xl text-slate-500 font-bold text-sm">Cancelar</button>
@@ -1033,6 +1245,95 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onLogout
                                 ))
                             )}
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {activeTab === 'personalization' && isSuperAdmin && (
+                <div className="max-w-4xl mx-auto w-full h-full flex flex-col items-center justify-center py-4 overflow-hidden">
+                    <div className="bg-white p-8 rounded-3xl shadow-xl border border-emerald-100 w-full max-w-2xl flex flex-col">
+                      <h3 className="text-xl font-black text-slate-800 mb-6 flex items-center gap-2 shrink-0">
+                        <Palette className="w-6 h-6 text-emerald-600" /> Personalización del Centro
+                      </h3>
+                      
+                      <div className="space-y-8 overflow-y-auto pr-2 custom-scrollbar">
+                        <div className="flex flex-col items-center gap-6 p-8 bg-slate-50 rounded-3xl border-4 border-dashed border-emerald-100/50">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block text-center">Logotipo del Centro Educativo</label>
+                          
+                          <div className="relative group">
+                            <div className="w-56 h-56 bg-white rounded-3xl shadow-2xl border-4 border-white flex items-center justify-center overflow-hidden p-6 relative">
+                              {data.centerLogo ? (
+                                <img src={data.centerLogo} alt="Logo del Centro" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                              ) : (
+                                <div className="flex flex-col items-center text-slate-300">
+                                  <Image className="w-20 h-20 mb-3 opacity-20" />
+                                  <span className="text-[10px] font-black uppercase tracking-widest opacity-40">Sin logo configurado</span>
+                                </div>
+                              )}
+                              {isWebcamActive && isCapturingLogo && (
+                                  <video ref={webcamVideoRef} autoPlay playsInline className="absolute inset-0 w-full h-full object-cover z-20" />
+                              )}
+                            </div>
+                            
+                            {!isWebcamActive && (
+                              <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+                                <input type="file" ref={logoFileInputRef} className="hidden" accept="image/*" onChange={handleLogoUpload} />
+                                <button 
+                                  onClick={() => logoFileInputRef.current?.click()}
+                                  className="bg-emerald-600 text-white p-4 rounded-2xl shadow-xl hover:bg-emerald-500 transition transform hover:scale-105 active:scale-95 flex items-center gap-2 group/btn"
+                                  title="Subir archivo"
+                                >
+                                  <Upload className="w-4 h-4" /> 
+                                  <span className="text-[10px] font-black uppercase tracking-widest hidden sm:block">Subir Fichero</span>
+                                </button>
+                                <button 
+                                  onClick={() => { setIsCapturingLogo(true); startWebcam(); }}
+                                  className="bg-blue-600 text-white p-4 rounded-2xl shadow-xl hover:bg-blue-500 transition transform hover:scale-105 active:scale-95 flex items-center gap-2"
+                                  title="Usar cámara"
+                                >
+                                  <Camera className="w-4 h-4" />
+                                  <span className="text-[10px] font-black uppercase tracking-widest hidden sm:block">Usar Cámara</span>
+                                </button>
+                              </div>
+                            )}
+                            {isWebcamActive && isCapturingLogo && (
+                                <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-30">
+                                    <button onClick={() => { setIsCapturingLogo(false); stopWebcam(); }} className="bg-slate-800 text-white p-3 rounded-xl shadow-lg hover:bg-slate-700 transition">
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                    <button onClick={capturePhoto} className="bg-emerald-600 text-white px-6 py-3 rounded-xl shadow-lg hover:bg-emerald-500 transition font-black uppercase tracking-widest text-[10px] flex items-center gap-2">
+                                        <Camera className="w-4 h-4" /> Capturar ahora
+                                    </button>
+                                </div>
+                            )}
+                          </div>
+                          
+                          <div className="mt-8 text-center space-y-2">
+                            <p className="text-[10px] text-slate-500 font-medium max-w-sm mx-auto leading-relaxed">
+                              Esta imagen se guardará de forma segura en la base de datos y se mostrará en la <span className="font-bold text-emerald-600">pantalla de inicio</span> y el <span className="font-bold text-emerald-600">acceso para docentes</span>.
+                            </p>
+                            <p className="text-[9px] text-slate-400 italic">Recomendado: Fondo transparente o blanco.</p>
+                          </div>
+                        </div>
+
+                        {data.centerLogo && !isWebcamActive && (
+                          <button 
+                            onClick={() => {
+                                setModalConfig({
+                                    isOpen: true, type: 'danger', title: '¿Restablecer logotipo?', message: 'Se eliminará el logo personalizado y se volverá al logo por defecto del centro.', confirmText: 'Restablecer',
+                                    onConfirm: () => {
+                                        onUpdate({ ...data, centerLogo: undefined });
+                                        setModalConfig(p => ({...p, isOpen: false}));
+                                        showNotification("Logotipo restablecido");
+                                    }
+                                });
+                            }}
+                            className="w-full py-4 text-rose-500 font-black uppercase tracking-widest text-[10px] hover:bg-rose-50 rounded-2xl transition-all flex items-center justify-center gap-2 border border-transparent hover:border-rose-100"
+                          >
+                            <RefreshCw className="w-3.5 h-3.5" /> Restablecer logotipo original
+                          </button>
+                        )}
+                      </div>
                     </div>
                 </div>
             )}

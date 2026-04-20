@@ -1,9 +1,10 @@
 import React, { useMemo, useState, useRef } from 'react';
-import { CalendarEvent, CourseModule, EventType } from '../types';
+import { CalendarEvent, CourseModule, EventType, Teacher } from '../types';
 import { EVENT_COLORS, EVENT_LABELS, INITIAL_DATA } from '../constants';
-import { ZoomIn, ZoomOut, Info, Calendar as CalendarIcon, X, MapPin, Clock, FileText, ClipboardList, Link as LinkIcon, Mail, Phone, User, ArrowDownAZ, CalendarDays, TreePine, VenetianMask, Sun, MessageSquare, Users, Save, Send, Reply, Lock, ChevronDown, Eye, Filter, CalendarClock } from 'lucide-react';
+import { ZoomIn, ZoomOut, Info, Calendar as CalendarIcon, X, MapPin, Clock, FileText, ClipboardList, Link as LinkIcon, Mail, Phone, User, ArrowDownAZ, CalendarDays, TreePine, VenetianMask, Sun, MessageSquare, Users, Save, Send, Reply, Lock, ChevronDown, Eye, Filter, CalendarClock, ExternalLink } from 'lucide-react';
 
 interface TimelineViewProps {
+  teachers: Teacher[];
   modules: CourseModule[];
   events: CalendarEvent[];
   cycleTitle: string;
@@ -43,7 +44,7 @@ const SHORT_LEGEND_LABELS: Record<EventType, string> = {
   [EventType.NON_DOCENT]: 'Sin docencia'
 };
 
-const TimelineView: React.FC<TimelineViewProps> = ({ modules, events, cycleTitle, startDate, endDate }) => {
+const TimelineView: React.FC<TimelineViewProps> = ({ teachers, modules, events, cycleTitle, startDate, endDate }) => {
   const [zoomLevel, setZoomLevel] = useState(1); // 1 = 100%, 2 = 200%, etc.
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [viewingTeacher, setViewingTeacher] = useState<CourseModule | null>(null);
@@ -576,9 +577,10 @@ const TimelineView: React.FC<TimelineViewProps> = ({ modules, events, cycleTitle
                                 const hasSeparator = separatorIndex !== -1;
                                 const modCode = hasSeparator ? module.name.slice(0, separatorIndex + 1) : module.name;
                                 const modName = hasSeparator ? module.name.slice(separatorIndex + 1) : '';
-                                const optimizedAvatarUrl = getOptimizedImageUrl(module.teacherPhotoUrl || '');
+                                const moduleTeacherData = teachers.find(t => t.name === module.teacherName);
+                                const optimizedAvatarUrl = getOptimizedImageUrl(moduleTeacherData?.photoUrl || '');
                                 const hasImageError = imageErrors[module.id];
-                                const showAvatar = module.teacherPhotoUrl && !hasImageError;
+                                const showAvatar = moduleTeacherData?.photoUrl && !hasImageError;
                                 const visibleModuleEvents = moduleEvents.filter(e => shouldShowEvent(e.type));
 
                                 return (
@@ -661,14 +663,21 @@ const TimelineView: React.FC<TimelineViewProps> = ({ modules, events, cycleTitle
       </div>
 
       {/* MODAL: TARJETA VIRTUAL DEL DOCENTE */}
-      {viewingTeacher && (
+      {viewingTeacher && (() => {
+        const teacherData = teachers.find(t => t.name === viewingTeacher.teacherName);
+        const hasError = imageErrors[viewingTeacher.id];
+        const photo = teacherData?.photoUrl && !hasError ? getOptimizedImageUrl(teacherData.photoUrl) : null;
+        
+        return (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
-            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-sm overflow-hidden animate-in zoom-in-95 duration-300 font-sans">
+            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-300 font-sans">
                 <button onClick={() => setViewingTeacher(null)} className="absolute top-3 right-3 z-20 bg-black/20 hover:bg-black/40 text-white rounded-full p-1.5 transition-colors"><X className="w-4 h-4" /></button>
-                <div className="h-28 bg-gradient-to-br from-emerald-600 to-teal-800 relative"><div className="absolute inset-0 opacity-20" style={{backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '20px 20px'}}></div></div>
+                <div className="h-24 bg-gradient-to-br from-emerald-600 to-teal-800 relative">
+                    <div className="absolute inset-0 opacity-20" style={{backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '20px 20px'}}></div>
+                </div>
                 <div className="px-6 pb-8 relative">
                     <div className="w-24 h-24 rounded-full border-4 border-white shadow-lg bg-slate-100 mx-auto -mt-12 overflow-hidden flex items-center justify-center text-3xl font-bold text-slate-300 relative z-10">
-                        {viewingTeacher.teacherPhotoUrl && !imageErrors[viewingTeacher.id] ? <img src={getOptimizedImageUrl(viewingTeacher.teacherPhotoUrl)} alt={viewingTeacher.teacherName} className="w-full h-full object-cover" onError={() => handleImageError(viewingTeacher.id)} /> : <User className="w-10 h-10" />}
+                        {photo ? <img src={photo} alt={viewingTeacher.teacherName} className="w-full h-full object-cover" onError={() => handleImageError(viewingTeacher.id)} /> : <User className="w-10 h-10" />}
                     </div>
                     <div className="text-center mt-4 mb-6">
                         {(() => {
@@ -677,26 +686,56 @@ const TimelineView: React.FC<TimelineViewProps> = ({ modules, events, cycleTitle
                         })()}
                         <div className="w-12 h-1 bg-emerald-500 rounded-full mx-auto mt-4"></div>
                     </div>
-                    <div className="space-y-4">
-                        <div className="flex items-center gap-4 p-3 rounded-xl bg-slate-50 border border-slate-100 group transition-colors hover:border-emerald-200">
-                            <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-emerald-600 shadow-sm border border-slate-100 group-hover:scale-110 transition-transform"><Mail className="w-5 h-5" /></div>
-                            <div className="flex-1 min-w-0">
-                                <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Email Corporativo</p>
-                                <p className="text-sm font-medium text-slate-700 truncate">{viewingTeacher.teacherEmail ? <a href={`mailto:${viewingTeacher.teacherEmail}`} className="hover:text-emerald-600 hover:underline">{viewingTeacher.teacherEmail}</a> : <span className="text-slate-400 italic">No disponible</span>}</p>
+                    
+                    <div className="space-y-3">
+                        {/* Info de contacto */}
+                        <div className="grid grid-cols-1 gap-2">
+                            <div className="flex items-center gap-3 p-2.5 rounded-xl bg-slate-50 border border-slate-100 group transition-colors hover:border-emerald-200">
+                                <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-emerald-600 shadow-sm border border-slate-100 group-hover:scale-110 transition-transform"><Mail className="w-4 h-4" /></div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Email</p>
+                                    <p className="text-xs font-bold text-slate-700 truncate">{teacherData?.email ? <a href={`mailto:${teacherData.email}`} className="hover:text-emerald-600">{teacherData.email}</a> : <span className="text-slate-400 italic">No disponible</span>}</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-3 p-2.5 rounded-xl bg-slate-50 border border-slate-100 group transition-colors hover:border-emerald-200">
+                                <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-emerald-600 shadow-sm border border-slate-100 group-hover:scale-110 transition-transform"><Phone className="w-4 h-4" /></div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Teléfono</p>
+                                    <p className="text-xs font-bold text-slate-700">{teacherData?.phone ? <a href={`tel:${teacherData.phone}`} className="hover:text-emerald-600">{teacherData.phone}</a> : <span className="text-slate-400 italic">No disponible</span>}</p>
+                                </div>
                             </div>
                         </div>
-                        <div className="flex items-center gap-4 p-3 rounded-xl bg-slate-50 border border-slate-100 group transition-colors hover:border-emerald-200">
-                            <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-emerald-600 shadow-sm border border-slate-100 group-hover:scale-110 transition-transform"><Phone className="w-5 h-5" /></div>
-                            <div className="flex-1 min-w-0">
-                                <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Teléfono de Contacto</p>
-                                <p className="text-sm font-medium text-slate-700">{viewingTeacher.teacherPhone ? <a href={`tel:${viewingTeacher.teacherPhone}`} className="hover:text-emerald-600 hover:underline">{viewingTeacher.teacherPhone}</a> : <span className="text-slate-400 italic">No disponible</span>}</p>
+
+                        {/* Enlaces de interés (Programación y Evaluación) */}
+                        <div className="pt-2 border-t border-slate-100">
+                            <p className="text-[9px] uppercase font-bold text-slate-400 tracking-widest mb-2 px-1 text-center">Recursos del Módulo</p>
+                            <div className="grid grid-cols-2 gap-2">
+                                <a 
+                                    href={viewingTeacher.pdfUrl || '#'} 
+                                    target={viewingTeacher.pdfUrl ? "_blank" : undefined} 
+                                    className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all ${viewingTeacher.pdfUrl ? 'border-rose-100 bg-rose-50 text-rose-700 hover:border-rose-400 hover:shadow-md' : 'border-slate-50 bg-slate-50 text-slate-300 pointer-events-none'}`}
+                                    rel="noreferrer"
+                                >
+                                    <FileText className="w-5 h-5" />
+                                    <span className="text-[9px] font-black uppercase text-center">Programación</span>
+                                </a>
+                                <a 
+                                    href={viewingTeacher.evaluationUrl || '#'} 
+                                    target={viewingTeacher.evaluationUrl ? "_blank" : undefined} 
+                                    className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all ${viewingTeacher.evaluationUrl ? 'border-blue-100 bg-blue-50 text-blue-700 hover:border-blue-400 hover:shadow-md' : 'border-slate-50 bg-slate-50 text-slate-300 pointer-events-none'}`}
+                                    rel="noreferrer"
+                                >
+                                    <ClipboardList className="w-5 h-5" />
+                                    <span className="text-[9px] font-black uppercase text-center">Evaluación</span>
+                                </a>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* Modal de Detalles del Evento */}
       {selectedEvent && (

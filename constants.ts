@@ -43,6 +43,8 @@ const endYear = startYear + 1;
 const defaultStart = `${startYear}-09-01`;
 const defaultEnd = `${endYear}-06-30`;
 
+export const DEFAULT_LOGO = "https://drive.google.com/thumbnail?id=1a_mfqngTi5-5lm33gqQWAo5UEpJfO-KD&sz=w1000";
+
 export const INITIAL_DATA: AppData = {
   academicYear: {
     startDate: defaultStart,

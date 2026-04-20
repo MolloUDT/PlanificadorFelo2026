@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { loadData, saveData } from './services/storage';
 import { AppData, CycleId, Teacher } from './types';
-import { ADMIN_KEY, INITIAL_DATA } from './constants';
+import { ADMIN_KEY, INITIAL_DATA, DEFAULT_LOGO } from './constants';
 import VerticalTimeline from './components/VerticalTimeline';
 // Fix: Use named import for AdminPanel as it is exported as a named constant in its source file
 import { AdminPanel, AdminTab } from './components/AdminPanel';
@@ -152,9 +152,10 @@ const App: React.FC = () => {
             {/* LOGOTIPO AJUSTADO: Círculo más pequeño e imagen interior más grande (scale-125) */}
             <div className="inline-flex items-center justify-center w-28 h-28 md:w-36 md:h-36 bg-white rounded-full shadow-2xl mb-2 p-1 border-4 border-emerald-50/20 backdrop-blur-sm">
                <img 
-                 src="https://drive.google.com/thumbnail?id=1a_mfqngTi5-5lm33gqQWAo5UEpJfO-KD&sz=w1000" 
-                 alt="Logo CIFP Felo Monzón Grau-Bassas" 
+                 src={data.centerLogo || DEFAULT_LOGO} 
+                 alt="Logo del Centro" 
                  className="w-full h-full object-contain scale-125"
+                 referrerPolicy="no-referrer"
                />
             </div>
             <h1 className="text-lg md:text-2xl font-black tracking-tight text-white drop-shadow-lg leading-tight">
@@ -203,7 +204,15 @@ const App: React.FC = () => {
        <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-teal-100/50 rounded-full blur-[80px] translate-y-1/2 -translate-x-1/2"></div>
 
       <div className="bg-white p-10 rounded-2xl shadow-2xl max-w-md w-full border border-slate-100 relative z-10">
-        <div className="flex justify-center mb-8"><div className="bg-emerald-50 p-4 rounded-full"><LogIn className="w-10 h-10 text-emerald-700"/></div></div>
+        <div className="flex justify-center mb-8">
+            <div className={`p-1 rounded-full bg-emerald-50 shadow-inner border border-emerald-100 ${data.centerLogo ? 'w-24 h-24' : 'p-4'}`}>
+                {data.centerLogo ? (
+                    <img src={data.centerLogo} alt="Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                ) : (
+                    <LogIn className="w-10 h-10 text-emerald-700"/>
+                )}
+            </div>
+        </div>
         <h2 className="text-3xl font-bold text-center mb-2 text-slate-800">Bienvenido</h2>
         <p className="text-center text-slate-500 mb-8">Identifícate y usa tu clave de docente para acceder.</p>
         
@@ -288,7 +297,7 @@ const App: React.FC = () => {
             <div className="flex items-center gap-2"><GraduationCap className="w-5 h-5 text-emerald-700" /><span className="font-bold text-slate-700 hidden sm:block tracking-tight">Planificación Docente</span></div>
         </div>
         <div className="flex-1 p-4 md:p-6 overflow-hidden bg-emerald-50/30">
-            <VerticalTimeline modules={cycleModules} events={data.events} cycleTitle={title} startDate={data.academicYear.startDate} endDate={data.academicYear.endDate} />
+            <VerticalTimeline teachers={data.teachers} modules={cycleModules} events={data.events} cycleTitle={title} startDate={data.academicYear.startDate} endDate={data.academicYear.endDate} />
         </div>
       </div>
     );
