@@ -9,6 +9,7 @@ import { GraduationCap, Lock, Calendar, BookOpen, LogIn, ChevronRight, Activity,
 
 type ViewState = 'HOME' | 'VIEW_TSAF' | 'VIEW_TSEAS' | 'LOGIN' | 'ADMIN';
 
+// Build Version: 1.0.3 (Manual Trigger for Vercel Sync)
 const App: React.FC = () => {
   const [data, setData] = useState<AppData>(INITIAL_DATA);
   const [isLoading, setIsLoading] = useState(true);
