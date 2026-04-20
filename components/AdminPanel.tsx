@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { AppData, CycleId, EventType, CourseModule, CalendarEvent, Trimester, Teacher, CommunicationMessage } from '../types';
-import { EVENT_LABELS, EVENT_THEMES, EVENT_COLORS } from '../constants';
+import { EVENT_LABELS, EVENT_THEMES, EVENT_COLORS, DEFAULT_LOGO } from '../constants';
 import { Settings, Book, Calendar, LogOut, Plus, Trash2, CheckCircle, Edit, X, Clock, Eye, ChevronDown, ChevronUp, MapPin, AlertTriangle, AlertCircle, FileText, Link as LinkIcon, ClipboardList, Image, Mail, Phone, User, ArrowDownAZ, CalendarDays, TreePine, VenetianMask, Sun, MessageSquare, Users, Save, Send, Reply, Lock, EyeOff, Camera, Upload, RefreshCw, Palette } from 'lucide-react';
 
 export type AdminTab = 'config' | 'team' | 'modules' | 'events' | 'communication' | 'personalization';
@@ -164,8 +164,12 @@ const MessageCard: React.FC<MessageCardProps> = ({
 export const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onLogout, onPreview, activeTab, onTabChange, currentTeacherId }) => {
   const [notification, setNotification] = useState<{message: string, type: 'success' | 'error'} | null>(null);
   const isSuperAdmin = currentTeacherId === 'SUPER_ADMIN';
-  const currentUser = data.teachers.find(t => t.id === currentTeacherId);
-  const currentTeacherName = isSuperAdmin ? 'Administrador Principal' : (currentUser?.name || 'Invitado');
+  const currentUser = isSuperAdmin ? {
+      id: 'SUPER_ADMIN',
+      name: data.adminConfig?.name || 'Administrador General',
+      photoUrl: data.adminConfig?.photoUrl
+  } : data.teachers.find(t => t.id === currentTeacherId);
+  const currentTeacherName = isSuperAdmin ? (data.adminConfig?.name || 'Administrador Principal') : (currentUser?.name || 'Invitado');
 
   // UI State
   const [showPreviewMenu, setShowPreviewMenu] = useState(false);
@@ -241,7 +245,26 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onLogout
 
   // Personalization State
   const logoFileInputRef = useRef<HTMLInputElement>(null);
+  const adminPhotoFileInputRef = useRef<HTMLInputElement>(null);
   const [isCapturingLogo, setIsCapturingLogo] = useState(false);
+  const [isCapturingAdminPhoto, setIsCapturingAdminPhoto] = useState(false);
+  const [showAdminPassword, setShowAdminPassword] = useState(false);
+  
+  // Draft states for personalization to allow Cancel
+  const [draftLogo, setDraftLogo] = useState(data.centerLogo);
+  const [draftAdminName, setDraftAdminName] = useState(data.adminConfig?.name || '');
+  const [draftAdminPass, setDraftAdminPass] = useState(data.adminConfig?.password || '');
+  const [draftAdminPhoto, setDraftAdminPhoto] = useState(data.adminConfig?.photoUrl || '');
+
+  // Update drafts when data changes (e.g. on initial load)
+  useEffect(() => {
+    if (activeTab === 'personalization') {
+      setDraftLogo(data.centerLogo);
+      setDraftAdminName(data.adminConfig?.name || '');
+      setDraftAdminPass(data.adminConfig?.password || '');
+      setDraftAdminPhoto(data.adminConfig?.photoUrl || '');
+    }
+  }, [activeTab, data.centerLogo, data.adminConfig]);
 
   const visibleModules = data.modules.filter(m => m.cycleId === activeCycleTab);
   
@@ -383,9 +406,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onLogout
             const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
             
             if (isCapturingLogo) {
-                onUpdate({ ...data, centerLogo: dataUrl });
-                showNotification("Logotipo actualizado correctamente");
+                setDraftLogo(dataUrl);
+                showNotification("Logotipo por cargar (pulse Guardar)");
                 setIsCapturingLogo(false);
+            } else if (isCapturingAdminPhoto) {
+                setDraftAdminPhoto(dataUrl);
+                showNotification("Foto por cargar (pulse Guardar)");
+                setIsCapturingAdminPhoto(false);
             } else {
                 setEditTeacherPhoto(dataUrl);
             }
@@ -418,11 +445,49 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onLogout
         }
         const reader = new FileReader();
         reader.onloadend = () => {
-            onUpdate({ ...data, centerLogo: reader.result as string });
-            showNotification("Logotipo actualizado correctamente");
+            setDraftLogo(reader.result as string);
+            showNotification("Logotipo por cargar (pulse Guardar)");
         };
         reader.readAsDataURL(file);
     }
+  };
+
+  const handleAdminPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+        if (file.size > 2 * 1024 * 1024) {
+            showNotification("La imagen es demasiado grande (máx 2MB)", "error");
+            return;
+        }
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setDraftAdminPhoto(reader.result as string);
+            showNotification("Foto por cargar (pulse Guardar)");
+        };
+        reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSavePersonalization = () => {
+    onUpdate({
+        ...data,
+        centerLogo: draftLogo,
+        adminConfig: {
+            ...(data.adminConfig || {name: 'admin', password: 'esperanza2026'}),
+            name: draftAdminName,
+            password: draftAdminPass,
+            photoUrl: draftAdminPhoto
+        }
+    });
+    showNotification("Personalización guardada con éxito");
+  };
+
+  const handleCancelPersonalization = () => {
+    setDraftLogo(data.centerLogo);
+    setDraftAdminName(data.adminConfig?.name || '');
+    setDraftAdminPass(data.adminConfig?.password || '');
+    setDraftAdminPhoto(data.adminConfig?.photoUrl || '');
+    showNotification("Cambios descartados");
   };
 
   const confirmDeleteTeacher = (id: string) => {
@@ -643,7 +708,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onLogout
              <div className="hidden sm:block">
                 <h1 className="text-lg font-black text-slate-800 leading-none">Panel de Gestión</h1>
                 <p className="text-[10px] text-slate-500 mt-1 uppercase tracking-wider font-bold">
-                    {isSuperAdmin ? 'Super Administrador' : `Docente: ${currentTeacherName}`}
+                    {isSuperAdmin ? currentTeacherName : `Docente: ${currentTeacherName}`}
                 </p>
              </div>
           </div>
@@ -1250,28 +1315,30 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onLogout
             )}
 
             {activeTab === 'personalization' && isSuperAdmin && (
-                <div className="max-w-4xl mx-auto w-full h-full flex flex-col items-center justify-center py-4 overflow-hidden">
-                    <div className="bg-white p-8 rounded-3xl shadow-xl border border-emerald-100 w-full max-w-2xl flex flex-col">
-                      <h3 className="text-xl font-black text-slate-800 mb-6 flex items-center gap-2 shrink-0">
-                        <Palette className="w-6 h-6 text-emerald-600" /> Personalización del Centro
-                      </h3>
-                      
-                      <div className="space-y-8 overflow-y-auto pr-2 custom-scrollbar">
-                        <div className="flex flex-col items-center gap-6 p-8 bg-slate-50 rounded-3xl border-4 border-dashed border-emerald-100/50">
-                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block text-center">Logotipo del Centro Educativo</label>
+                <div className="max-w-4xl mx-auto w-full h-full flex flex-col items-center justify-start py-2 overflow-hidden">
+                    <div className="bg-white p-6 rounded-3xl shadow-xl border border-emerald-100 w-full max-w-xl flex flex-col max-h-[calc(100vh-180px)]">
+                      <div className="space-y-4 overflow-y-auto pr-2 custom-scrollbar">
+                        <div className="flex flex-col items-center gap-4 p-6 bg-slate-50 rounded-3xl border-4 border-dashed border-emerald-100/50">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block text-center">Logotipo Actual del Centro</label>
                           
                           <div className="relative group">
-                            <div className="w-56 h-56 bg-white rounded-3xl shadow-2xl border-4 border-white flex items-center justify-center overflow-hidden p-6 relative">
-                              {data.centerLogo ? (
-                                <img src={data.centerLogo} alt="Logo del Centro" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
-                              ) : (
-                                <div className="flex flex-col items-center text-slate-300">
-                                  <Image className="w-20 h-20 mb-3 opacity-20" />
-                                  <span className="text-[10px] font-black uppercase tracking-widest opacity-40">Sin logo configurado</span>
-                                </div>
-                              )}
+                            <div className="w-44 h-44 bg-white rounded-3xl shadow-2xl border-4 border-white flex items-center justify-center overflow-hidden p-4 relative">
+                              <img 
+                                src={draftLogo || DEFAULT_LOGO} 
+                                alt="Logo del Centro" 
+                                className="w-full h-full object-contain" 
+                                referrerPolicy="no-referrer" 
+                              />
+                              
                               {isWebcamActive && isCapturingLogo && (
                                   <video ref={webcamVideoRef} autoPlay playsInline className="absolute inset-0 w-full h-full object-cover z-20" />
+                              )}
+
+                              {/* Indicador de logo personalizado */}
+                              {!isWebcamActive && data.centerLogo && (
+                                <div className="absolute top-2 right-2 bg-emerald-500 text-white p-1 rounded-full shadow-lg z-10 animate-pulse">
+                                  <CheckCircle className="w-3 h-3" />
+                                </div>
                               )}
                             </div>
                             
@@ -1280,39 +1347,39 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onLogout
                                 <input type="file" ref={logoFileInputRef} className="hidden" accept="image/*" onChange={handleLogoUpload} />
                                 <button 
                                   onClick={() => logoFileInputRef.current?.click()}
-                                  className="bg-emerald-600 text-white p-4 rounded-2xl shadow-xl hover:bg-emerald-500 transition transform hover:scale-105 active:scale-95 flex items-center gap-2 group/btn"
+                                  className="bg-emerald-600 text-white p-3 rounded-xl shadow-xl hover:bg-emerald-500 transition transform hover:scale-105 active:scale-95 flex items-center gap-2"
                                   title="Subir archivo"
                                 >
-                                  <Upload className="w-4 h-4" /> 
-                                  <span className="text-[10px] font-black uppercase tracking-widest hidden sm:block">Subir Fichero</span>
+                                  <Upload className="w-3.5 h-3.5" /> 
+                                  <span className="text-[9px] font-black uppercase tracking-widest">Subir</span>
                                 </button>
                                 <button 
                                   onClick={() => { setIsCapturingLogo(true); startWebcam(); }}
-                                  className="bg-blue-600 text-white p-4 rounded-2xl shadow-xl hover:bg-blue-500 transition transform hover:scale-105 active:scale-95 flex items-center gap-2"
+                                  className="bg-blue-600 text-white p-3 rounded-xl shadow-xl hover:bg-blue-500 transition transform hover:scale-105 active:scale-95 flex items-center gap-2"
                                   title="Usar cámara"
                                 >
-                                  <Camera className="w-4 h-4" />
-                                  <span className="text-[10px] font-black uppercase tracking-widest hidden sm:block">Usar Cámara</span>
+                                  <Camera className="w-3.5 h-3.5" />
+                                  <span className="text-[9px] font-black uppercase tracking-widest">Cámara</span>
                                 </button>
                               </div>
                             )}
                             {isWebcamActive && isCapturingLogo && (
                                 <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-30">
-                                    <button onClick={() => { setIsCapturingLogo(false); stopWebcam(); }} className="bg-slate-800 text-white p-3 rounded-xl shadow-lg hover:bg-slate-700 transition">
-                                        <X className="w-4 h-4" />
+                                    <button onClick={() => { setIsCapturingLogo(false); stopWebcam(); }} className="bg-slate-800 text-white p-2.5 rounded-lg shadow-lg hover:bg-slate-700 transition">
+                                        <X className="w-3.5 h-3.5" />
                                     </button>
-                                    <button onClick={capturePhoto} className="bg-emerald-600 text-white px-6 py-3 rounded-xl shadow-lg hover:bg-emerald-500 transition font-black uppercase tracking-widest text-[10px] flex items-center gap-2">
-                                        <Camera className="w-4 h-4" /> Capturar ahora
+                                    <button onClick={capturePhoto} className="bg-emerald-600 text-white px-4 py-2.5 rounded-lg shadow-lg hover:bg-emerald-500 transition font-black uppercase tracking-widest text-[9px] flex items-center gap-2">
+                                        <Camera className="w-3.5 h-3.5" /> Capturar
                                     </button>
                                 </div>
                             )}
                           </div>
                           
-                          <div className="mt-8 text-center space-y-2">
-                            <p className="text-[10px] text-slate-500 font-medium max-w-sm mx-auto leading-relaxed">
-                              Esta imagen se guardará de forma segura en la base de datos y se mostrará en la <span className="font-bold text-emerald-600">pantalla de inicio</span> y el <span className="font-bold text-emerald-600">acceso para docentes</span>.
+                          <div className="mt-6 text-center space-y-1">
+                            <p className="text-[9px] text-slate-500 font-medium max-w-sm mx-auto leading-relaxed">
+                              El logo se verá en la <span className="font-bold text-emerald-600">pantalla de inicio</span> y el <span className="font-bold text-emerald-600">acceso para docentes</span>.
                             </p>
-                            <p className="text-[9px] text-slate-400 italic">Recomendado: Fondo transparente o blanco.</p>
+                            <p className="text-[8px] text-slate-400 italic">Formato recomendado: PNG transparente.</p>
                           </div>
                         </div>
 
@@ -1328,11 +1395,97 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onLogout
                                     }
                                 });
                             }}
-                            className="w-full py-4 text-rose-500 font-black uppercase tracking-widest text-[10px] hover:bg-rose-50 rounded-2xl transition-all flex items-center justify-center gap-2 border border-transparent hover:border-rose-100"
+                            className="w-full py-3 text-rose-500 font-black uppercase tracking-widest text-[9px] hover:bg-rose-50 rounded-xl transition-all flex items-center justify-center gap-2 border border-transparent hover:border-rose-100"
                           >
-                            <RefreshCw className="w-3.5 h-3.5" /> Restablecer logotipo original
+                            <RefreshCw className="w-3 h-3" /> Restablecer logo original
                           </button>
                         )}
+
+                        {/* SECCIÓN DE PERFIL DE ADMINISTRADOR */}
+                        <div className="mt-6 pt-6 border-t border-slate-100 space-y-6">
+                            <div className="flex items-center gap-2 mb-4">
+                                <User className="w-4 h-4 text-emerald-600" />
+                                <h4 className="text-[11px] font-black uppercase tracking-tighter text-slate-800">Perfil del Administrador General</h4>
+                            </div>
+
+                            <div className="flex flex-col sm:flex-row gap-6 items-center sm:items-start bg-emerald-50/30 p-4 rounded-2xl border border-emerald-100/50">
+                                <div className="relative group shrink-0">
+                                    <div className="w-24 h-24 rounded-full bg-white shadow-xl border-4 border-white flex items-center justify-center overflow-hidden relative">
+                                        {draftAdminPhoto ? (
+                                            <img src={draftAdminPhoto} alt="Admin" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                        ) : (
+                                            <div className="bg-emerald-100 w-full h-full flex items-center justify-center">
+                                                <User className="w-8 h-8 text-emerald-600 opacity-30" />
+                                            </div>
+                                        )}
+                                        {isWebcamActive && isCapturingAdminPhoto && (
+                                            <video ref={webcamVideoRef} autoPlay playsInline className="absolute inset-0 w-full h-full object-cover z-20" />
+                                        )}
+                                    </div>
+                                    
+                                    {!isWebcamActive && (
+                                        <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+                                            <input type="file" ref={adminPhotoFileInputRef} className="hidden" accept="image/*" onChange={handleAdminPhotoUpload} />
+                                            <button onClick={() => adminPhotoFileInputRef.current?.click()} className="bg-emerald-600 text-white p-2 rounded-lg shadow-lg hover:bg-emerald-500 transition"><Upload className="w-3 h-3" /></button>
+                                            <button onClick={() => { setIsCapturingAdminPhoto(true); startWebcam(); }} className="bg-blue-600 text-white p-2 rounded-lg shadow-lg hover:bg-blue-500 transition"><Camera className="w-3 h-3" /></button>
+                                        </div>
+                                    )}
+                                    {isWebcamActive && isCapturingAdminPhoto && (
+                                        <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 flex gap-1 z-30">
+                                            <button onClick={() => { setIsCapturingAdminPhoto(false); stopWebcam(); }} className="bg-slate-800 text-white p-2 rounded-lg shadow-lg"><X className="w-3 h-3" /></button>
+                                            <button onClick={capturePhoto} className="bg-emerald-600 text-white px-3 py-2 rounded-lg shadow-lg text-[9px] font-black uppercase"><Camera className="w-3 h-3" /></button>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="flex-1 w-full space-y-4">
+                                    <div className="space-y-1">
+                                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-1">Nombre Display</label>
+                                        <input 
+                                            type="text" 
+                                            className="w-full bg-white border border-slate-200 p-3 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-emerald-500 transition-all"
+                                            value={draftAdminName}
+                                            onChange={(e) => setDraftAdminName(e.target.value)}
+                                            placeholder="Nombre del SuperAdmin..."
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-1">Clave de Acceso</label>
+                                        <div className="relative">
+                                            <input 
+                                                type={showAdminPassword ? "text" : "password"} 
+                                                className="w-full bg-white border border-slate-200 p-3 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-emerald-500 transition-all pr-12"
+                                                value={draftAdminPass}
+                                                onChange={(e) => setDraftAdminPass(e.target.value)}
+                                                placeholder="Contraseña del SuperAdmin..."
+                                            />
+                                            <button 
+                                                type="button"
+                                                onClick={() => setShowAdminPassword(!showAdminPassword)}
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-emerald-600 p-1"
+                                            >
+                                                {showAdminPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="mt-8 flex gap-3 pt-6 border-t border-slate-100 pb-4">
+                          <button 
+                              onClick={handleCancelPersonalization}
+                              className="flex-1 py-3 px-4 bg-slate-100 h-12 hover:bg-slate-200 text-slate-600 font-black uppercase tracking-widest text-[9px] rounded-xl transition-all"
+                          >
+                              Descartar
+                          </button>
+                          <button 
+                              onClick={handleSavePersonalization}
+                              className="flex-[2] py-3 px-4 bg-emerald-600 h-12 hover:bg-emerald-700 text-white font-black uppercase tracking-widest text-[10px] rounded-xl transition-all shadow-lg shadow-emerald-200 flex items-center justify-center gap-2"
+                          >
+                              <Save className="w-4 h-4" /> Guardar Cambios
+                          </button>
+                        </div>
                       </div>
                     </div>
                 </div>

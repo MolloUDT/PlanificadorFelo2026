@@ -80,6 +80,12 @@ export interface CommunicationMessage {
   parentId?: string; // Para anidamiento de respuestas
 }
 
+export interface AdminConfig {
+  name: string;
+  password?: string;
+  photoUrl?: string;
+}
+
 export interface AppData {
   academicYear: AcademicYearConfig;
   modules: CourseModule[];
@@ -87,6 +93,7 @@ export interface AppData {
   teachers: Teacher[];
   communications: CommunicationMessage[];
   centerLogo?: string; // Nuevo campo para el logo del centro
+  adminConfig?: AdminConfig; // Configuración del Super Administrador
 }
 
 export interface UserSession {

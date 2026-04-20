@@ -74,10 +74,13 @@ export const saveData = async (data: AppData): Promise<void> => {
       if (cError) console.error("Error upserting communications:", cError);
     }
 
-    // 5. Guardar Configuración General (Logo)
+    // 5. Guardar Configuración General (Logo y Admin)
     const { error: sConfigError } = await supabase.from('app_settings').upsert({
         id: 1,
-        center_logo: data.centerLogo
+        center_logo: data.centerLogo,
+        admin_name: data.adminConfig?.name,
+        admin_password: data.adminConfig?.password,
+        admin_photo_url: data.adminConfig?.photoUrl
     });
     if (sConfigError) console.error("Error upserting app_settings:", sConfigError);
     
@@ -101,7 +104,7 @@ export const loadData = async (): Promise<AppData> => {
       supabase.from('course_modules').select('*'),
       supabase.from('calendar_events').select('*'),
       supabase.from('communications').select('*'),
-      supabase.from('app_settings').select('center_logo').eq('id', 1).single()
+      supabase.from('app_settings').select('*').eq('id', 1).single()
     ]);
 
     // Registro de errores individuales si existen
@@ -119,6 +122,11 @@ export const loadData = async (): Promise<AppData> => {
     const events = eventsRes.data || [];
     const communications = communicationsRes.data || [];
     const centerLogo = settingsRes.data?.center_logo || undefined;
+    const adminConfig = settingsRes.data ? {
+        name: settingsRes.data.admin_name || INITIAL_DATA.adminConfig?.name || 'Admin',
+        password: settingsRes.data.admin_password || INITIAL_DATA.adminConfig?.password,
+        photoUrl: settingsRes.data.admin_photo_url
+    } : INITIAL_DATA.adminConfig;
 
     // Verificación crítica: Si no hay teachers, es muy probable que la DB esté vacía o haya un error de conexión/RLS
     if (teachers.length === 0) {
@@ -130,6 +138,7 @@ export const loadData = async (): Promise<AppData> => {
 
     return {
       centerLogo,
+      adminConfig,
       academicYear: INITIAL_DATA.academicYear,
       teachers: teachers.map(t => ({
         id: t.id,

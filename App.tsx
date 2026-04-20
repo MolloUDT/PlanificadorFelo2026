@@ -85,7 +85,15 @@ const App: React.FC = () => {
     e.preventDefault();
     
     // LÓGICA DE SUPERADMIN
-    if (typedTeacherName.trim().toLowerCase() === 'admin' && password === 'esperanza2026') {
+    const adminConfig = data.adminConfig || INITIAL_DATA.adminConfig;
+    const adminName = adminConfig?.name || 'admin';
+    const adminPass = adminConfig?.password || 'esperanza2026';
+
+    const isAdminNameMatch = 
+      typedTeacherName.trim().toLowerCase() === adminName.toLowerCase() || 
+      typedTeacherName.trim().toLowerCase() === 'admin';
+
+    if (isAdminNameMatch && password === adminPass) {
       setIsAdminLoggedIn(true);
       setCurrentTeacherId('SUPER_ADMIN');
       setAuthError(false);

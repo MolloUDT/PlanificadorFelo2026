@@ -134,7 +134,11 @@ export const INITIAL_DATA: AppData = {
     { id: 't5', name: 'Alejandro Díaz Quintana' },
     { id: 't6', name: 'Guillermo Gil Sánchez' }
   ],
-  communications: []
+  communications: [],
+  adminConfig: {
+    name: 'admin',
+    password: 'esperanza2026',
+  }
 };
 
 export const ADMIN_KEY = "felo2627";
