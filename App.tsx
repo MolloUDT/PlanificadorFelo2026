@@ -5,7 +5,7 @@ import { ADMIN_KEY, INITIAL_DATA } from './constants';
 import VerticalTimeline from './components/VerticalTimeline';
 // Fix: Use named import for AdminPanel as it is exported as a named constant in its source file
 import { AdminPanel, AdminTab } from './components/AdminPanel';
-import { GraduationCap, Lock, Calendar, BookOpen, LogIn, ChevronRight, Activity, Dumbbell, AlertCircle, X, CheckCircle, User, Users, Megaphone, Loader2 } from 'lucide-react';
+import { GraduationCap, Lock, Calendar, BookOpen, LogIn, ChevronRight, Activity, Dumbbell, AlertCircle, X, CheckCircle, User, Users, Megaphone, Loader2, Eye, EyeOff } from 'lucide-react';
 
 type ViewState = 'HOME' | 'VIEW_TSAF' | 'VIEW_TSEAS' | 'LOGIN' | 'ADMIN';
 
@@ -16,6 +16,7 @@ const App: React.FC = () => {
   const [password, setPassword] = useState('');
   const [selectedTeacherId, setSelectedTeacherId] = useState('');
   const [typedTeacherName, setTypedTeacherName] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [authError, setAuthError] = useState(false);
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const [currentTeacherId, setCurrentTeacherId] = useState<string | null>(null);
@@ -228,14 +229,24 @@ const App: React.FC = () => {
           </div>
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-2">Clave de Acceso</label>
-            <input 
-              type="password" 
-              required
-              className="w-full border border-slate-300 p-4 rounded-xl focus:ring-4 focus:ring-emerald-100 focus:border-emerald-500 outline-none transition-all text-slate-900 bg-white"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+            <div className="relative">
+              <input 
+                type={showPassword ? "text" : "password"} 
+                required
+                className="w-full border border-slate-300 p-4 rounded-xl focus:ring-4 focus:ring-emerald-100 focus:border-emerald-500 outline-none transition-all text-slate-900 bg-white pr-14"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <button 
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute inset-y-0 right-0 flex items-center px-4 text-slate-400 hover:text-emerald-600 transition-colors"
+                title={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+              >
+                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
+            </div>
           </div>
           {authError && (
             <div className="p-4 bg-red-50 text-red-600 text-sm rounded-xl border border-red-100 flex items-center animate-pulse gap-2">

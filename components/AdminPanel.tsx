@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { AppData, CycleId, EventType, CourseModule, CalendarEvent, Trimester, Teacher, CommunicationMessage } from '../types';
 import { EVENT_LABELS, EVENT_THEMES, EVENT_COLORS } from '../constants';
-import { Settings, Book, Calendar, LogOut, Plus, Trash2, CheckCircle, Edit, X, Clock, Eye, ChevronDown, ChevronUp, MapPin, AlertTriangle, AlertCircle, FileText, Link as LinkIcon, ClipboardList, Image, Mail, Phone, User, ArrowDownAZ, CalendarDays, TreePine, VenetianMask, Sun, MessageSquare, Users, Save, Send, Reply, Lock } from 'lucide-react';
+import { Settings, Book, Calendar, LogOut, Plus, Trash2, CheckCircle, Edit, X, Clock, Eye, ChevronDown, ChevronUp, MapPin, AlertTriangle, AlertCircle, FileText, Link as LinkIcon, ClipboardList, Image, Mail, Phone, User, ArrowDownAZ, CalendarDays, TreePine, VenetianMask, Sun, MessageSquare, Users, Save, Send, Reply, Lock, EyeOff } from 'lucide-react';
 
 export type AdminTab = 'config' | 'team' | 'modules' | 'events' | 'communication';
 
@@ -228,6 +228,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onLogout
   const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
   const [editTeacherName, setEditTeacherName] = useState('');
   const [editTeacherPassword, setEditTeacherPassword] = useState('');
+  const [showEditPassword, setShowEditPassword] = useState(false);
 
   // Communication State
   const [msgReceiverId, setMsgReceiverId] = useState('');
@@ -576,13 +577,25 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onLogout
                     <form onSubmit={handleUpdateConfig} className="bg-emerald-950 p-6 md:p-8 rounded-3xl shadow-2xl border border-emerald-800 w-full flex flex-col">
                         <div className="flex items-center justify-center gap-6 bg-emerald-900/50 p-4 rounded-xl border border-emerald-800 mb-8">
                              <div className="flex items-center gap-3">
-                                <label className="text-emerald-100 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">Inicio curso:</label>
-                                <input type="date" disabled={!isSuperAdmin} className="bg-emerald-850 text-white p-2 rounded-lg border border-emerald-700 text-[11px] font-bold outline-none focus:border-emerald-400 transition" value={yearStart} onChange={e => setYearStart(e.target.value)} />
+                                <label className="text-emerald-100 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">INICIO DE CURSO:</label>
+                                <input 
+                                    type="date" 
+                                    readOnly={!isSuperAdmin} 
+                                    className={`bg-white text-black p-2 rounded-lg border border-emerald-700 text-[11px] font-bold outline-none focus:border-emerald-400 transition ${!isSuperAdmin ? 'pointer-events-none select-none appearance-none' : ''}`} 
+                                    value={yearStart} 
+                                    onChange={e => setYearStart(e.target.value)} 
+                                />
                              </div>
                              <div className="w-px h-6 bg-emerald-800"></div>
                              <div className="flex items-center gap-3">
-                                <label className="text-emerald-100 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">Fin curso:</label>
-                                <input type="date" disabled={!isSuperAdmin} className="bg-emerald-850 text-white p-2 rounded-lg border border-emerald-700 text-[11px] font-bold outline-none focus:border-emerald-400 transition" value={yearEnd} onChange={e => setYearEnd(e.target.value)} />
+                                <label className="text-emerald-100 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">FIN DE CURSO:</label>
+                                <input 
+                                    type="date" 
+                                    readOnly={!isSuperAdmin} 
+                                    className={`bg-white text-black p-2 rounded-lg border border-emerald-700 text-[11px] font-bold outline-none focus:border-emerald-400 transition ${!isSuperAdmin ? 'pointer-events-none select-none appearance-none' : ''}`} 
+                                    value={yearEnd} 
+                                    onChange={e => setYearEnd(e.target.value)} 
+                                />
                              </div>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-8">
@@ -590,9 +603,21 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onLogout
                                 <div key={trim.id} className="bg-emerald-900/30 p-3 rounded-xl border border-emerald-800">
                                     <h4 className="text-emerald-400 font-black text-[10px] uppercase tracking-widest mb-2 flex items-center gap-2"><CalendarDays className="w-3.5 h-3.5"/> Trimestre {trim.id}</h4>
                                     <div className="flex items-center gap-1 bg-emerald-950/50 p-1.5 rounded-lg border border-emerald-800">
-                                        <input type="date" disabled={!isSuperAdmin} className="w-full bg-transparent text-white p-1 text-[10px] font-bold outline-none" value={trim.startDate} onChange={e => handleTrimesterChange(trim.id, 'startDate', e.target.value)} />
+                                        <input 
+                                            type="date" 
+                                            readOnly={!isSuperAdmin} 
+                                            className={`w-full bg-transparent text-white p-1 text-[10px] font-bold outline-none ${!isSuperAdmin ? 'pointer-events-none select-none appearance-none' : ''}`} 
+                                            value={trim.startDate} 
+                                            onChange={e => handleTrimesterChange(trim.id, 'startDate', e.target.value)} 
+                                        />
                                         <span className="text-emerald-800 font-black text-xs">-</span>
-                                        <input type="date" disabled={!isSuperAdmin} className="w-full bg-transparent text-white p-1 text-[10px] font-bold outline-none" value={trim.endDate} onChange={e => handleTrimesterChange(trim.id, 'endDate', e.target.value)} />
+                                        <input 
+                                            type="date" 
+                                            readOnly={!isSuperAdmin} 
+                                            className={`w-full bg-transparent text-white p-1 text-[10px] font-bold outline-none ${!isSuperAdmin ? 'pointer-events-none select-none appearance-none' : ''}`} 
+                                            value={trim.endDate} 
+                                            onChange={e => handleTrimesterChange(trim.id, 'endDate', e.target.value)} 
+                                        />
                                     </div>
                                 </div>
                             ))}
@@ -601,25 +626,61 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onLogout
                             <div className="bg-emerald-900/40 p-3 rounded-xl border border-emerald-800/60">
                                 <h4 className="text-rose-400 font-black text-[10px] uppercase tracking-widest mb-2 flex items-center gap-2"><TreePine className="w-3.5 h-3.5"/> Navidad</h4>
                                 <div className="flex items-center gap-1 bg-emerald-950/50 p-1.5 rounded-lg border border-emerald-800/40">
-                                    <input type="date" disabled={!isSuperAdmin} className="w-full bg-transparent text-white p-1 text-[10px] font-bold outline-none" value={xmasStart} onChange={e => setXmasStart(e.target.value)} />
+                                    <input 
+                                        type="date" 
+                                        readOnly={!isSuperAdmin} 
+                                        className={`w-full bg-transparent text-white p-1 text-[10px] font-bold outline-none ${!isSuperAdmin ? 'pointer-events-none select-none appearance-none' : ''}`} 
+                                        value={xmasStart} 
+                                        onChange={e => setXmasStart(e.target.value)} 
+                                    />
                                     <span className="text-emerald-800 font-black text-xs">-</span>
-                                    <input type="date" disabled={!isSuperAdmin} className="w-full bg-transparent text-white p-1 text-[10px] font-bold outline-none" value={xmasEnd} onChange={e => setXmasEnd(e.target.value)} />
+                                    <input 
+                                        type="date" 
+                                        readOnly={!isSuperAdmin} 
+                                        className={`w-full bg-transparent text-white p-1 text-[10px] font-bold outline-none ${!isSuperAdmin ? 'pointer-events-none select-none appearance-none' : ''}`} 
+                                        value={xmasEnd} 
+                                        onChange={e => setXmasEnd(e.target.value)} 
+                                    />
                                 </div>
                             </div>
                             <div className="bg-emerald-900/40 p-3 rounded-xl border border-emerald-800/60">
                                 <h4 className="text-sky-400 font-black text-[10px] uppercase tracking-widest mb-2 flex items-center gap-2"><VenetianMask className="w-3.5 h-3.5"/> Carnavales</h4>
                                 <div className="flex items-center gap-1 bg-emerald-950/50 p-1.5 rounded-lg border border-emerald-800/40">
-                                    <input type="date" disabled={!isSuperAdmin} className="w-full bg-transparent text-white p-1 text-[10px] font-bold outline-none" value={carnivalStart} onChange={e => setCarnivalStart(e.target.value)} />
+                                    <input 
+                                        type="date" 
+                                        readOnly={!isSuperAdmin} 
+                                        className={`w-full bg-transparent text-white p-1 text-[10px] font-bold outline-none ${!isSuperAdmin ? 'pointer-events-none select-none appearance-none' : ''}`} 
+                                        value={carnivalStart} 
+                                        onChange={e => setCarnivalStart(e.target.value)} 
+                                    />
                                     <span className="text-emerald-800 font-black text-xs">-</span>
-                                    <input type="date" disabled={!isSuperAdmin} className="w-full bg-transparent text-white p-1 text-[10px] font-bold outline-none" value={carnivalEnd} onChange={e => setCarnivalEnd(e.target.value)} />
+                                    <input 
+                                        type="date" 
+                                        readOnly={!isSuperAdmin} 
+                                        className={`w-full bg-transparent text-white p-1 text-[10px] font-bold outline-none ${!isSuperAdmin ? 'pointer-events-none select-none appearance-none' : ''}`} 
+                                        value={carnivalEnd} 
+                                        onChange={e => setCarnivalEnd(e.target.value)} 
+                                    />
                                 </div>
                             </div>
                             <div className="bg-emerald-900/40 p-3 rounded-xl border border-emerald-800/60">
                                 <h4 className="text-amber-400 font-black text-[10px] uppercase tracking-widest mb-2 flex items-center gap-2"><Sun className="w-3.5 h-3.5"/> Semana Santa</h4>
                                 <div className="flex items-center gap-1 bg-emerald-950/50 p-1.5 rounded-lg border border-emerald-800/40">
-                                    <input type="date" disabled={!isSuperAdmin} className="w-full bg-transparent text-white p-1 text-[10px] font-bold outline-none" value={easterStart} onChange={e => setEasterStart(e.target.value)} />
+                                    <input 
+                                        type="date" 
+                                        readOnly={!isSuperAdmin} 
+                                        className={`w-full bg-transparent text-white p-1 text-[10px] font-bold outline-none ${!isSuperAdmin ? 'pointer-events-none select-none appearance-none' : ''}`} 
+                                        value={easterStart} 
+                                        onChange={e => setEasterStart(e.target.value)} 
+                                    />
                                     <span className="text-emerald-800 font-black text-xs">-</span>
-                                    <input type="date" disabled={!isSuperAdmin} className="w-full bg-transparent text-white p-1 text-[10px] font-bold outline-none" value={easterEnd} onChange={e => setEasterEnd(e.target.value)} />
+                                    <input 
+                                        type="date" 
+                                        readOnly={!isSuperAdmin} 
+                                        className={`w-full bg-transparent text-white p-1 text-[10px] font-bold outline-none ${!isSuperAdmin ? 'pointer-events-none select-none appearance-none' : ''}`} 
+                                        value={easterEnd} 
+                                        onChange={e => setEasterEnd(e.target.value)} 
+                                    />
                                 </div>
                             </div>
                         </div>
@@ -691,14 +752,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onLogout
                                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Contraseña Personal</label>
                                       <div className="relative">
                                           <input 
-                                              type="password"
-                                              className="w-full p-3 pl-10 rounded-xl border-2 border-slate-100 text-sm font-bold bg-white text-slate-800 focus:border-emerald-500 outline-none transition" 
+                                              type={showEditPassword ? "text" : "password"}
+                                              className="w-full p-3 pl-10 pr-12 rounded-xl border-2 border-slate-100 text-sm font-bold bg-white text-slate-800 focus:border-emerald-500 outline-none transition" 
                                               placeholder="Definir contraseña..."
                                               value={editTeacherPassword} 
                                               onChange={e => setEditTeacherPassword(e.target.value)} 
                                               required
                                           />
                                           <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                                          <button 
+                                            type="button"
+                                            onClick={() => setShowEditPassword(!showEditPassword)}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-emerald-600 transition-colors"
+                                            title={showEditPassword ? "Ocultar" : "Ver"}
+                                          >
+                                            {showEditPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                          </button>
                                       </div>
                                       <p className="text-[9px] text-slate-400 mt-1">Esta clave será necesaria para el Acceso Docente.</p>
                                   </div>
