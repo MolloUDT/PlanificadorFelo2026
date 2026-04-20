@@ -42,7 +42,11 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (!isLoading) {
-      saveData(data);
+      const handler = setTimeout(() => {
+        saveData(data);
+      }, 1000); // Debounce de 1 segundo para evitar saturar Supabase
+
+      return () => clearTimeout(handler);
     }
   }, [data, isLoading]);
 

@@ -4,16 +4,19 @@ import { supabase } from '../lib/supabase';
 
 export const saveData = async (data: AppData): Promise<void> => {
   try {
+    console.log("Iniciando guardado en Supabase...");
+
     // 1. Guardar Docentes (Upsert)
     if (data.teachers.length > 0) {
-      await supabase.from('teachers').upsert(
+      const { error: tError } = await supabase.from('teachers').upsert(
         data.teachers.map(t => ({ id: t.id, name: t.name, password: t.password }))
       );
+      if (tError) console.error("Error upserting teachers:", tError);
     }
 
     // 2. Guardar Módulos
     if (data.modules.length > 0) {
-      await supabase.from('course_modules').upsert(
+      const { error: mError } = await supabase.from('course_modules').upsert(
         data.modules.map(m => ({
           id: m.id,
           name: m.name,
@@ -27,14 +30,15 @@ export const saveData = async (data: AppData): Promise<void> => {
           teacher_phone: m.teacherPhone
         }))
       );
+      if (mError) console.error("Error upserting modules:", mError);
     }
 
     // 3. Guardar Eventos
     if (data.events.length > 0) {
-       await supabase.from('calendar_events').upsert(
+       const { error: eError } = await supabase.from('calendar_events').upsert(
          data.events.map(e => ({
            id: e.id,
-           module_id: e.moduleId === 'GLOBAL' ? null : e.moduleId,
+           module_id: (e.moduleId === 'GLOBAL' || !e.moduleId) ? null : e.moduleId,
            type: e.type,
            title: e.title,
            start_date: e.startDate,
@@ -44,11 +48,12 @@ export const saveData = async (data: AppData): Promise<void> => {
            time: e.time
          }))
        );
+       if (eError) console.error("Error upserting events:", eError);
     }
 
     // 4. Guardar Comunicaciones
     if (data.communications && data.communications.length > 0) {
-      await supabase.from('communications').upsert(
+      const { error: cError } = await supabase.from('communications').upsert(
         data.communications.map(c => ({
           id: c.id,
           sender_id: c.senderId,
@@ -59,14 +64,18 @@ export const saveData = async (data: AppData): Promise<void> => {
           parent_id: c.parentId
         }))
       );
+      if (cError) console.error("Error upserting communications:", cError);
     }
+    
+    console.log("Proceso de guardado finalizado.");
   } catch (e) {
-    console.error("Failed to save data to Supabase", e);
+    console.error("Excepción crítica al guardar en Supabase:", e);
   }
 };
 
 export const loadData = async (): Promise<AppData> => {
   try {
+    console.log("Cargando datos desde Supabase...");
     const [
       teachersRes,
       modulesRes,
@@ -79,29 +88,33 @@ export const loadData = async (): Promise<AppData> => {
       supabase.from('communications').select('*')
     ]);
 
-    if (teachersRes.error) {
-      console.error("Supabase Error (teachers):", teachersRes.error);
-    }
+    // Registro de errores individuales si existen
+    if (teachersRes.error) console.error("Supabase Error (teachers):", teachersRes.error);
+    if (modulesRes.error) console.error("Supabase Error (modules):", modulesRes.error);
+    if (eventsRes.error) console.error("Supabase Error (events):", eventsRes.error);
+    if (communicationsRes.error) console.error("Supabase Error (communications):", communicationsRes.error);
 
-    const teachers = teachersRes.data;
-    const modules = modulesRes.data;
-    const events = eventsRes.data;
-    const communications = communicationsRes.data;
+    const teachers = teachersRes.data || [];
+    const modules = modulesRes.data || [];
+    const events = eventsRes.data || [];
+    const communications = communicationsRes.data || [];
 
-    // Si hay error o no hay docentes, usamos los datos iniciales
-    if (teachersRes.error || !teachers || teachers.length === 0) {
-      console.log("No data found or error occurred, using INITIAL_DATA");
+    // Verificación crítica: Si no hay teachers, es muy probable que la DB esté vacía o haya un error de conexión/RLS
+    if (teachers.length === 0) {
+      console.warn("No se encontraron docentes en la DB. Posible base de datos vacía. Usando INITIAL_DATA.");
       return INITIAL_DATA;
     }
 
+    console.log(`Carga exitosa: ${teachers.length} docentes, ${modules.length} módulos, ${events.length} eventos.`);
+
     return {
       academicYear: INITIAL_DATA.academicYear,
-      teachers: (teachers || []).map(t => ({
+      teachers: teachers.map(t => ({
         id: t.id,
         name: t.name,
         password: t.password
       })),
-      modules: (modules || []).map(m => ({
+      modules: modules.map(m => ({
         id: m.id,
         name: m.name,
         cycleId: m.cycle_id as CycleId,
@@ -113,7 +126,7 @@ export const loadData = async (): Promise<AppData> => {
         teacherEmail: m.teacher_email,
         teacherPhone: m.teacher_phone
       })),
-      events: (events || []).map(e => ({
+      events: events.map(e => ({
         id: e.id,
         moduleId: e.module_id || 'GLOBAL',
         type: e.type as EventType,
@@ -124,7 +137,7 @@ export const loadData = async (): Promise<AppData> => {
         location: e.location,
         time: e.time
       })),
-      communications: (communications || []).map(c => ({
+      communications: communications.map(c => ({
         id: c.id,
         senderId: c.sender_id,
         receiverId: c.receiver_id,
@@ -135,7 +148,7 @@ export const loadData = async (): Promise<AppData> => {
       }))
     };
   } catch (e) {
-    console.error("Failed to load data from Supabase", e);
+    console.error("Excepción crítica al cargar desde Supabase:", e);
     return INITIAL_DATA;
   }
 };
