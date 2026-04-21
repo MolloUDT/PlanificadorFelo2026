@@ -152,12 +152,17 @@ export const loadData = async (): Promise<AppData> => {
     ]);
 
     // Registro de errores individuales si existen
-    if (teachersRes.error) console.error("Supabase Error (teachers):", teachersRes.error);
-    if (modulesRes.error) console.error("Supabase Error (modules):", modulesRes.error);
+    if (teachersRes.error) {
+      console.error("Supabase Error (teachers):", teachersRes.error);
+      throw new Error("Fallo crítico: No se pudieron cargar los docentes.");
+    }
+    if (modulesRes.error) {
+      console.error("Supabase Error (modules):", modulesRes.error);
+      throw new Error("Fallo crítico: No se pudieron cargar los módulos.");
+    }
     if (eventsRes.error) console.error("Supabase Error (events):", eventsRes.error);
     if (communicationsRes.error) console.error("Supabase Error (communications):", communicationsRes.error);
     if (settingsRes.error && settingsRes.error.code !== 'PGRST116') {
-        // Ignoramos el error PGRST116 que significa "sin resultados", lo cual es normal la primera vez
         console.error("Supabase Error (settings):", settingsRes.error);
     }
 

@@ -71,7 +71,7 @@ const MessageCard: React.FC<MessageCardProps> = ({
     <div className={`bg-white border-2 rounded-2xl p-5 shadow-sm transition-all flex gap-4 ${msg.isRead ? 'border-emerald-50 bg-slate-50/30' : 'border-slate-100 hover:border-emerald-200'} ${isReply ? 'ml-8 md:ml-12 border-l-4 border-l-emerald-200 mt-2' : ''}`}>
       <div className="shrink-0 flex flex-col items-center gap-2">
         <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-sm shadow-inner ${msg.isRead ? 'bg-slate-200 text-slate-400' : 'bg-emerald-100 text-emerald-700 border border-emerald-200'}`}>
-          {sender.charAt(0)}
+          {(sender || '?').charAt(0)}
         </div>
       </div>
       <div className="flex-1 min-w-0">
@@ -985,7 +985,7 @@ const confirmDeleteTeacher = (id: string) => {
                                               referrerPolicy="no-referrer" 
                                           />
                                       ) : (
-                                          <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-[10px] shrink-0">{t.name.charAt(0)}</div>
+                                          <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-[10px] shrink-0">{(t.name || '?').charAt(0)}</div>
                                       )}
                                       <span className="font-bold text-slate-700 text-sm truncate">{t.name}</span>
                                   </div>

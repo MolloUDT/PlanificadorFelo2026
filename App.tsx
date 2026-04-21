@@ -14,6 +14,7 @@ type ViewState = 'HOME' | 'VIEW_TSAF' | 'VIEW_TSEAS' | 'LOGIN' | 'ADMIN';
 const App: React.FC = () => {
   const [data, setData] = useState<AppData>(INITIAL_DATA);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [view, setView] = useState<ViewState>('HOME');
   const [password, setPassword] = useState('');
   const [selectedTeacherId, setSelectedTeacherId] = useState('');
@@ -35,12 +36,13 @@ const App: React.FC = () => {
   useEffect(() => {
     const initData = async () => {
       setIsLoading(true);
+      setLoadError(null);
       try {
         const remoteData = await loadData();
         setData(remoteData);
       } catch (error) {
         console.error("Error inicializando datos:", error);
-        setData(INITIAL_DATA);
+        setLoadError("Fallo al conectar con la base de datos. Los cambios no se guardarán hasta que se restablezca la conexión.");
       } finally {
         setIsLoading(false);
       }
@@ -85,7 +87,8 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (!isLoading) {
+    // Si ha habido un error de carga, bloqueamos el guardado automático para no SOBREESCRIBIR la base de datos
+    if (!isLoading && !loadError) {
       // Si el cambio de data viene del servidor (Realtime), NO volvemos a guardarlo
       if (isRemoteUpdate.current) {
         isRemoteUpdate.current = false;
@@ -109,8 +112,28 @@ const App: React.FC = () => {
     }
   }, [data, isLoading]);
 
-  if (isLoading) {
+  if (isLoading || loadError) {
     const isConfigMissing = !import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY;
+    
+    if (loadError) {
+      return (
+        <div className="min-h-screen bg-emerald-950 flex flex-col items-center justify-center text-white p-6 text-center">
+          <div className="max-w-md bg-amber-900/20 border border-amber-500/50 p-6 rounded-2xl backdrop-blur-sm">
+            <AlertCircle className="w-12 h-12 text-amber-400 mx-auto mb-4" />
+            <h2 className="text-xl font-bold mb-2 text-amber-200">Error de Conexión</h2>
+            <p className="text-amber-100/80 mb-6 text-sm">
+              {loadError}
+            </p>
+            <button 
+              onClick={() => window.location.reload()}
+              className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2 rounded-xl font-bold transition-colors"
+            >
+              Reintentar conexión
+            </button>
+          </div>
+        </div>
+      );
+    }
     
     return (
       <div className="min-h-screen bg-emerald-950 flex flex-col items-center justify-center text-white p-6 text-center">

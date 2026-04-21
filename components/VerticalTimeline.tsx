@@ -623,9 +623,13 @@ const TimelineView: React.FC<TimelineViewProps> = ({ teachers, modules, events, 
                                             </h3>
                                             <div className="mt-1 flex items-center gap-2 cursor-pointer group/teacher hover:bg-white/40 p-1 -ml-1 rounded transition-colors" onClick={() => setViewingTeacher(module)} title="Ver tarjeta del docente">
                                                 <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 transition-colors overflow-hidden ${module.year === 1 ? 'bg-blue-100 text-blue-700 group-hover/teacher:bg-blue-200' : 'bg-emerald-100 text-emerald-700 group-hover/teacher:bg-emerald-200'}`}>
-                                                    {showAvatar ? <img src={optimizedAvatarUrl} alt="" className="w-full h-full object-cover" onError={() => handleImageError(module.id)} /> : module.teacherName.charAt(0)}
+                                                    {showAvatar ? (
+                                                      <img src={optimizedAvatarUrl} alt="" className="w-full h-full object-cover" onError={() => handleImageError(module.id)} />
+                                                    ) : (
+                                                      (module.teacherName || '?').charAt(0)
+                                                    )}
                                                 </div>
-                                                <span className={`text-xs font-medium truncate underline-offset-2 transition-colors ${module.teacherName === 'Docente por asignar' ? 'text-red-600 font-bold decoration-red-300' : (module.year === 1 ? 'text-blue-500 group-hover/teacher:text-blue-800 decoration-blue-300' : 'text-emerald-500 group-hover/teacher:text-emerald-800 decoration-emerald-300')}`}>{module.teacherName}</span>
+                                                <span className={`text-xs font-medium truncate underline-offset-2 transition-colors ${module.teacherName === 'Docente por asignar' || !module.teacherName ? 'text-red-600 font-bold decoration-red-300' : (module.year === 1 ? 'text-blue-500 group-hover/teacher:text-blue-800 decoration-blue-300' : 'text-emerald-500 group-hover/teacher:text-emerald-800 decoration-emerald-300')}`}>{module.teacherName || 'Sin asignar'}</span>
                                             </div>
                                             <div className="mt-1 pt-1 border-t border-black/5 flex items-center gap-3">
                                                 <a href={module.pdfUrl || '#'} target={module.pdfUrl ? "_blank" : undefined} rel="noopener noreferrer" className={`flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded transition-colors ${module.pdfUrl ? 'bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer border border-red-100' : 'bg-white/40 text-slate-300 cursor-default border border-black/5'}`} title={module.pdfUrl ? "Ver Programación (PDF)" : "Programación no disponible"} onClick={(e) => !module.pdfUrl && e.preventDefault()}><FileText size={14} /></a>
