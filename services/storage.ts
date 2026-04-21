@@ -58,33 +58,40 @@ export const saveData = async (data: AppData): Promise<{success: boolean, error?
     // 3. Deletions (Eliminar lo que ya no existe) - ORDEN CRÍTICO PARA CLAVES FORÁNEAS
     // Primero eliminamos comunicaciones porque dependen de docentes
     if (commIds.length > 0) {
-      await supabase.from('communications').delete().not('id', 'in', commIds);
-    } else if (data.communications) {
-      await supabase.from('communications').delete().neq('id', 'NONE');
+      const { error: cDelError } = await supabase.from('communications').delete().not('id', 'in', commIds);
+      if (cDelError) console.error("Error al limpiar comunicaciones:", cDelError);
+    } else if (data.communications && data.communications.length === 0) {
+      const { error: cDelError } = await supabase.from('communications').delete().neq('id', 'NONE');
+      if (cDelError) console.error("Error al vaciar comunicaciones:", cDelError);
     }
 
     // Luego eventos y módulos
     if (eventIds.length > 0) {
-      await supabase.from('calendar_events').delete().not('id', 'in', eventIds);
-    } else {
-      await supabase.from('calendar_events').delete().neq('id', 'NONE');
+      const { error: eDelError } = await supabase.from('calendar_events').delete().not('id', 'in', eventIds);
+      if (eDelError) console.error("Error al limpiar eventos:", eDelError);
+    } else if (data.events.length === 0) {
+      const { error: eDelError } = await supabase.from('calendar_events').delete().neq('id', 'NONE');
+      if (eDelError) console.error("Error al vaciar eventos:", eDelError);
     }
 
     if (moduleIds.length > 0) {
-      await supabase.from('course_modules').delete().not('id', 'in', moduleIds);
-    } else {
-      await supabase.from('course_modules').delete().neq('id', 'NONE');
+      const { error: mDelError } = await supabase.from('course_modules').delete().not('id', 'in', moduleIds);
+      if (mDelError) console.error("Error al limpiar módulos:", mDelError);
+    } else if (data.modules.length === 0) {
+      const { error: mDelError } = await supabase.from('course_modules').delete().neq('id', 'NONE');
+      if (mDelError) console.error("Error al vaciar módulos:", mDelError);
     }
 
     // Por último los docentes
     if (teacherIds.length > 0) {
       const { error: tDelError } = await supabase.from('teachers').delete().not('id', 'in', teacherIds);
       if (tDelError) {
-        console.warn("Posible conflicto al eliminar docentes (registros relacionados):", tDelError);
-        // Si falla por integridad, al menos el resto se guardó
+        console.error("Error CRÍTICO al eliminar docentes:", tDelError);
+        throw tDelError; // Lanzamos el error para que App.tsx sepa que falló la sincronización
       }
-    } else {
-      await supabase.from('teachers').delete().neq('id', 'NONE');
+    } else if (data.teachers.length === 0) {
+      const { error: tDelError } = await supabase.from('teachers').delete().neq('id', 'NONE');
+      if (tDelError) throw tDelError;
     }
     
     console.log("Sincronización finalizada con éxito.");
