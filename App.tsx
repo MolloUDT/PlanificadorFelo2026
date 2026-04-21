@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { loadData, saveData } from './services/storage';
+import { supabase } from './lib/supabase';
 import { AppData, CycleId, Teacher } from './types';
 import { ADMIN_KEY, INITIAL_DATA, DEFAULT_LOGO } from './constants';
 import VerticalTimeline from './components/VerticalTimeline';
@@ -42,6 +43,32 @@ const App: React.FC = () => {
       }
     };
     initData();
+
+    // SUSCRIPCIÓN EN TIEMPO REAL
+    // Escuchamos cambios en todas las tablas para actualizar la UI automáticamente
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public' },
+        async (payload) => {
+          console.log('Cambio detectado en tiempo real:', payload);
+          // Recargamos los datos completos para asegurar consistencia
+          const freshData = await loadData();
+          setData(prev => {
+            // Solo actualizamos si los datos son realmente diferentes para evitar parpadeos
+            if (JSON.stringify(prev) !== JSON.stringify(freshData)) {
+              return freshData;
+            }
+            return prev;
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   useEffect(() => {
