@@ -77,7 +77,7 @@ export const saveData = async (data: AppData): Promise<{success: boolean, error?
     // 3. Deletions (Eliminar lo que ya no existe) - ORDEN CRÍTICO PARA CLAVES FORÁNEAS
     // Primero eliminamos comunicaciones porque dependen de docentes
     if (commIds.length > 0) {
-      const { error: cDelError } = await supabase.from('communications').delete().not('id', 'in', commIds);
+      const { error: cDelError } = await supabase.from('communications').delete().not('id', 'in', `(${commIds.join(',')})`);
       if (cDelError) console.error("Error al limpiar comunicaciones:", cDelError);
     } else if (data.communications && data.communications.length === 0) {
       const { error: cDelError } = await supabase.from('communications').delete().neq('id', 'NONE');
@@ -86,7 +86,7 @@ export const saveData = async (data: AppData): Promise<{success: boolean, error?
 
     // Luego eventos y módulos
     if (eventIds.length > 0) {
-      const { error: eDelError } = await supabase.from('calendar_events').delete().not('id', 'in', eventIds);
+      const { error: eDelError } = await supabase.from('calendar_events').delete().not('id', 'in', `(${eventIds.join(',')})`);
       if (eDelError) console.error("Error al limpiar eventos:", eDelError);
     } else if (data.events.length === 0) {
       const { error: eDelError } = await supabase.from('calendar_events').delete().neq('id', 'NONE');
@@ -94,7 +94,7 @@ export const saveData = async (data: AppData): Promise<{success: boolean, error?
     }
 
     if (moduleIds.length > 0) {
-      const { error: mDelError } = await supabase.from('course_modules').delete().not('id', 'in', moduleIds);
+      const { error: mDelError } = await supabase.from('course_modules').delete().not('id', 'in', `(${moduleIds.join(',')})`);
       if (mDelError) console.error("Error al limpiar módulos:", mDelError);
     } else if (data.modules.length === 0) {
       const { error: mDelError } = await supabase.from('course_modules').delete().neq('id', 'NONE');
@@ -103,7 +103,7 @@ export const saveData = async (data: AppData): Promise<{success: boolean, error?
 
     // Por último los docentes
     if (teacherIds.length > 0) {
-      const { error: tDelError } = await supabase.from('teachers').delete().not('id', 'in', teacherIds);
+      const { error: tDelError } = await supabase.from('teachers').delete().not('id', 'in', `(${teacherIds.join(',')})`);
       if (tDelError) {
         console.error("Error CRÍTICO al eliminar docentes:", tDelError);
         throw tDelError; // Lanzamos el error para que App.tsx sepa que falló la sincronización
