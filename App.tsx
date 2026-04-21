@@ -26,6 +26,9 @@ const App: React.FC = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | boolean | null>(null);
   
+  // Ref para evitar bucles infinitos: ignorar el guardado si el cambio viene del servidor
+  const isRemoteUpdate = React.useRef(false);
+
   // Estado elevado para persistir la pestaña del AdminPanel
   const [adminActiveTab, setAdminActiveTab] = useState<AdminTab>('config');
 
@@ -46,6 +49,8 @@ const App: React.FC = () => {
 
     // SUSCRIPCIÓN EN TIEMPO REAL
     // Escuchamos cambios en todas las tablas para actualizar la UI automáticamente
+    let syncTimeout: NodeJS.Timeout;
+
     const channel = supabase
       .channel('schema-db-changes')
       .on(
@@ -53,15 +58,23 @@ const App: React.FC = () => {
         { event: '*', schema: 'public' },
         async (payload) => {
           console.log('Cambio detectado en tiempo real:', payload);
-          // Recargamos los datos completos para asegurar consistencia
-          const freshData = await loadData();
-          setData(prev => {
-            // Solo actualizamos si los datos son realmente diferentes para evitar parpadeos
-            if (JSON.stringify(prev) !== JSON.stringify(freshData)) {
-              return freshData;
-            }
-            return prev;
-          });
+          
+          // Debounce: Si hay muchos cambios seguidos, solo recargamos una vez tras 500ms
+          clearTimeout(syncTimeout);
+          syncTimeout = setTimeout(async () => {
+             try {
+                const freshData = await loadData();
+                setData(prev => {
+                  if (JSON.stringify(prev) !== JSON.stringify(freshData)) {
+                    isRemoteUpdate.current = true;
+                    return freshData;
+                  }
+                  return prev;
+                });
+             } catch (err) {
+                console.error("Error recargando datos en tiempo real:", err);
+             }
+          }, 500);
         }
       )
       .subscribe();
@@ -73,6 +86,12 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (!isLoading) {
+      // Si el cambio de data viene del servidor (Realtime), NO volvemos a guardarlo
+      if (isRemoteUpdate.current) {
+        isRemoteUpdate.current = false;
+        return;
+      }
+
       const handler = setTimeout(async () => {
         setIsSyncing(true);
         const result = await saveData(data);
