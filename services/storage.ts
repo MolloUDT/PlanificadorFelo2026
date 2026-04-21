@@ -15,10 +15,23 @@ export const saveData = async (data: AppData): Promise<{success: boolean, error?
     // 2. Upserts (Crear o Actualizar) - El orden no importa tanto aquí
     if (data.teachers.length > 0) {
       const { error: tError } = await supabase.from('teachers').upsert(
-        data.teachers.map(t => ({ 
-          id: t.id, name: t.name, first_name: t.firstName, last_name: t.lastName,
-          password: t.password, photo_url: t.photoUrl, email: t.email, phone: t.phone
-        }))
+        data.teachers.map(t => {
+          // Aseguramos coherencia: el campo 'name' siempre será la suma de nombre + apellidos
+          const derivedName = t.firstName && t.lastName 
+            ? `${t.firstName} ${t.lastName}` 
+            : (t.name || 'Sin nombre');
+            
+          return { 
+            id: t.id, 
+            name: derivedName, 
+            first_name: t.firstName, 
+            last_name: t.lastName,
+            password: t.password, 
+            photo_url: t.photoUrl, 
+            email: t.email, 
+            phone: t.phone
+          };
+        })
       );
       if (tError) {
         console.error("Error upserting teachers:", tError);
