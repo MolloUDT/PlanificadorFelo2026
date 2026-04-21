@@ -22,6 +22,8 @@ const App: React.FC = () => {
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const [currentTeacherId, setCurrentTeacherId] = useState<string | null>(null);
   const [showLoginWarning, setShowLoginWarning] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncError, setSyncError] = useState(false);
   
   // Estado elevado para persistir la pestaña del AdminPanel
   const [adminActiveTab, setAdminActiveTab] = useState<AdminTab>('config');
@@ -44,8 +46,17 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (!isLoading) {
-      const handler = setTimeout(() => {
-        saveData(data);
+      const handler = setTimeout(async () => {
+        setIsSyncing(true);
+        const result = await saveData(data);
+        setIsSyncing(false);
+        setSyncError(!result.success);
+        
+        if (!result.success) {
+            console.error("Error al sincronizar con Supabase. Los cambios locales se mantienen.");
+        } else {
+            setSyncError(false);
+        }
       }, 1000); // Debounce de 1 segundo para evitar saturar Supabase
 
       return () => clearTimeout(handler);
@@ -314,7 +325,7 @@ const App: React.FC = () => {
     case 'VIEW_TSAF': return renderTimelineView(CycleId.TSAF);
     case 'VIEW_TSEAS': return renderTimelineView(CycleId.TSEAS);
     case 'LOGIN': return renderLogin();
-    case 'ADMIN': return <AdminPanel data={data} onUpdate={setData} onLogout={handleLogout} onPreview={handleAdminPreview} activeTab={adminActiveTab} onTabChange={setAdminActiveTab} currentTeacherId={currentTeacherId} />;
+    case 'ADMIN': return <AdminPanel data={data} onUpdate={setData} onLogout={handleLogout} onPreview={handleAdminPreview} activeTab={adminActiveTab} onTabChange={setAdminActiveTab} currentTeacherId={currentTeacherId} isSyncing={isSyncing} syncError={syncError} />;
     default: return renderHome();
   }
 };

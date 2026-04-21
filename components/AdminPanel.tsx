@@ -13,6 +13,8 @@ interface AdminPanelProps {
   activeTab: AdminTab;
   onTabChange: (tab: AdminTab) => void;
   currentTeacherId?: string | null;
+  isSyncing?: boolean;
+  syncError?: boolean;
 }
 
 interface ModalConfig {
@@ -161,7 +163,7 @@ const MessageCard: React.FC<MessageCardProps> = ({
   );
 };
 
-export const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onLogout, onPreview, activeTab, onTabChange, currentTeacherId }) => {
+export const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onLogout, onPreview, activeTab, onTabChange, currentTeacherId, isSyncing, syncError }) => {
   const [notification, setNotification] = useState<{message: string, type: 'success' | 'error'} | null>(null);
   const isSuperAdmin = currentTeacherId === 'SUPER_ADMIN';
   const currentUser = isSuperAdmin ? {
@@ -560,14 +562,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onLogout
     showNotification("Cambios descartados");
   };
 
-  const confirmDeleteTeacher = (id: string) => {
+const confirmDeleteTeacher = (id: string) => {
     const teacher = data.teachers.find(t => t.id === id);
     setModalConfig({
-        isOpen: true, type: 'danger', title: '¿Eliminar profesor?', message: `Se eliminará a ${teacher?.name}.`, confirmText: 'Eliminar',
+        isOpen: true, type: 'danger', title: '¿Eliminar profesor?', message: `Se eliminará a ${teacher?.name} y todos sus mensajes asociados.`, confirmText: 'Eliminar',
         onConfirm: () => {
-            onUpdate({ ...data, teachers: data.teachers.filter(t => t.id !== id) });
+            onUpdate({ 
+                ...data, 
+                teachers: data.teachers.filter(t => t.id !== id),
+                communications: (data.communications || []).filter(c => c.senderId !== id && c.receiverId !== id)
+            });
             setModalConfig(p => ({...p, isOpen: false}));
-            showNotification("Profesor eliminado", "error");
+            showNotification("Profesor eliminado y mensajes asociados limpiados", "error");
         }
     });
   };
@@ -771,6 +777,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onLogout
              </div>
           </div>
           <div className="flex items-center gap-3">
+             {isSyncing && (
+                 <div className="flex items-center gap-1.5 px-2 py-1 bg-emerald-50 text-emerald-600 rounded-lg animate-pulse border border-emerald-100">
+                    <RefreshCw className="w-3 h-3 animate-spin"/>
+                    <span className="text-[9px] font-black uppercase tracking-widest">Sincronizando...</span>
+                 </div>
+             )}
+             {syncError && (
+                 <div className="flex items-center gap-1.5 px-2 py-1 bg-red-50 text-red-600 rounded-lg border border-red-100">
+                    <AlertCircle className="w-3 h-3"/>
+                    <span className="text-[9px] font-black uppercase tracking-widest">Error de Sincronización</span>
+                 </div>
+             )}
              <div className="relative" ref={previewMenuRef}>
                 <button onClick={() => setShowPreviewMenu(!showPreviewMenu)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-100 text-emerald-800 hover:bg-emerald-200">Vista Previa <ChevronDown className="w-3 h-3"/></button>
                 {showPreviewMenu && (

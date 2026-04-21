@@ -2,117 +2,96 @@ import { AppData, CourseModule, CalendarEvent, Teacher, CommunicationMessage, Cy
 import { INITIAL_DATA } from '../constants';
 import { supabase } from '../lib/supabase';
 
-export const saveData = async (data: AppData): Promise<void> => {
+export const saveData = async (data: AppData): Promise<{success: boolean, error?: any}> => {
   try {
-    console.log("Iniciando guardado sincronizado en Supabase...");
+    console.log("Iniciando sincronización profunda con Supabase...");
 
-    // --- 1. Sincronizar Docentes ---
+    // 1. Preparar IDs
     const teacherIds = data.teachers.map(t => t.id);
-    if (data.teachers.length > 0) {
-      const { error: tError } = await supabase.from('teachers').upsert(
-        data.teachers.map(t => ({ 
-          id: t.id, 
-          name: t.name, 
-          first_name: t.firstName,
-          last_name: t.lastName,
-          password: t.password,
-          photo_url: t.photoUrl,
-          email: t.email,
-          phone: t.phone
-        }))
-      );
-      if (tError) console.error("Error upserting teachers:", tError);
-      
-      const { error: tDelError } = await supabase.from('teachers').delete().not('id', 'in', teacherIds);
-      if (tDelError) console.error("Error cleaning up teachers:", tDelError);
-    } else {
-      await supabase.from('teachers').delete().neq('id', 'NONE');
-    }
-
-    // --- 2. Sincronizar Módulos ---
     const moduleIds = data.modules.map(m => m.id);
-    if (data.modules.length > 0) {
-      const { error: mError } = await supabase.from('course_modules').upsert(
-        data.modules.map(m => ({
-          id: m.id,
-          name: m.name,
-          cycle_id: m.cycleId,
-          teacher_name: m.teacherName,
-          year: m.year,
-          pdf_url: m.pdfUrl,
-          evaluation_url: m.evaluationUrl,
-          teacher_photo_url: m.teacherPhotoUrl,
-          teacher_email: m.teacherEmail,
-          teacher_phone: m.teacherPhone
-        }))
-      );
-      if (mError) console.error("Error upserting modules:", mError);
-
-      const { error: mDelError } = await supabase.from('course_modules').delete().not('id', 'in', moduleIds);
-      if (mDelError) console.error("Error cleaning up modules:", mDelError);
-    } else {
-      await supabase.from('course_modules').delete().neq('id', 'NONE');
-    }
-
-    // --- 3. Sincronizar Eventos ---
     const eventIds = data.events.map(e => e.id);
-    if (data.events.length > 0) {
-       const { error: eError } = await supabase.from('calendar_events').upsert(
-         data.events.map(e => ({
-           id: e.id,
-           module_id: (e.moduleId === 'GLOBAL' || !e.moduleId) ? null : e.moduleId,
-           type: e.type,
-           title: e.title,
-           start_date: e.startDate,
-           end_date: e.endDate,
-           description: e.description,
-           location: e.location,
-           time: e.time
-         }))
-       );
-       if (eError) console.error("Error upserting events:", eError);
-
-       const { error: eDelError } = await supabase.from('calendar_events').delete().not('id', 'in', eventIds);
-       if (eDelError) console.error("Error cleaning up events:", eDelError);
-    } else {
-       await supabase.from('calendar_events').delete().neq('id', 'NONE');
-    }
-
-    // --- 4. Sincronizar Comunicaciones ---
     const commIds = (data.communications || []).map(c => c.id);
+
+    // 2. Upserts (Crear o Actualizar) - El orden no importa tanto aquí
+    const { error: tError } = await supabase.from('teachers').upsert(
+      data.teachers.map(t => ({ 
+        id: t.id, name: t.name, first_name: t.firstName, last_name: t.lastName,
+        password: t.password, photo_url: t.photoUrl, email: t.email, phone: t.phone
+      }))
+    );
+    if (tError) throw tError;
+
+    const { error: mError } = await supabase.from('course_modules').upsert(
+      data.modules.map(m => ({
+        id: m.id, name: m.name, cycle_id: m.cycleId, teacher_name: m.teacherName,
+        year: m.year, pdf_url: m.pdfUrl, evaluation_url: m.evaluationUrl,
+        teacher_photo_url: m.teacherPhotoUrl, teacher_email: m.teacherEmail, teacher_phone: m.teacherPhone
+      }))
+    );
+    if (mError) throw mError;
+
+    const { error: eError } = await supabase.from('calendar_events').upsert(
+      data.events.map(e => ({
+        id: e.id, module_id: (e.moduleId === 'GLOBAL' || !e.moduleId) ? null : e.moduleId,
+        type: e.type, title: e.title, start_date: e.startDate, end_date: e.endDate,
+        description: e.description, location: e.location, time: e.time
+      }))
+    );
+    if (eError) throw eError;
+
     if (data.communications && data.communications.length > 0) {
       const { error: cError } = await supabase.from('communications').upsert(
         data.communications.map(c => ({
-          id: c.id,
-          sender_id: c.senderId,
-          receiver_id: c.receiverId,
-          timestamp: c.timestamp,
-          content: c.content,
-          is_read: c.isRead,
-          parent_id: c.parentId
+          id: c.id, sender_id: c.senderId, receiver_id: c.receiverId,
+          timestamp: c.timestamp, content: c.content, is_read: c.isRead, parent_id: c.parentId
         }))
       );
-      if (cError) console.error("Error upserting communications:", cError);
+      if (cError) throw cError;
+    }
 
-      const { error: cDelError } = await supabase.from('communications').delete().not('id', 'in', commIds);
-      if (cDelError) console.error("Error cleaning up communications:", cDelError);
+    const { error: sConfigError } = await supabase.from('app_settings').upsert({
+        id: 1, center_logo: data.centerLogo, admin_name: data.adminConfig?.name,
+        admin_password: data.adminConfig?.password, admin_photo_url: data.adminConfig?.photoUrl
+    });
+    if (sConfigError) throw sConfigError;
+
+    // 3. Deletions (Eliminar lo que ya no existe) - ORDEN CRÍTICO PARA CLAVES FORÁNEAS
+    // Primero eliminamos comunicaciones porque dependen de docentes
+    if (commIds.length > 0) {
+      await supabase.from('communications').delete().not('id', 'in', commIds);
     } else if (data.communications) {
       await supabase.from('communications').delete().neq('id', 'NONE');
     }
 
-    // --- 5. Guardar Configuración General (Logo y Admin) ---
-    const { error: sConfigError } = await supabase.from('app_settings').upsert({
-        id: 1,
-        center_logo: data.centerLogo,
-        admin_name: data.adminConfig?.name,
-        admin_password: data.adminConfig?.password,
-        admin_photo_url: data.adminConfig?.photoUrl
-    });
-    if (sConfigError) console.error("Error upserting app_settings:", sConfigError);
+    // Luego eventos y módulos
+    if (eventIds.length > 0) {
+      await supabase.from('calendar_events').delete().not('id', 'in', eventIds);
+    } else {
+      await supabase.from('calendar_events').delete().neq('id', 'NONE');
+    }
+
+    if (moduleIds.length > 0) {
+      await supabase.from('course_modules').delete().not('id', 'in', moduleIds);
+    } else {
+      await supabase.from('course_modules').delete().neq('id', 'NONE');
+    }
+
+    // Por último los docentes
+    if (teacherIds.length > 0) {
+      const { error: tDelError } = await supabase.from('teachers').delete().not('id', 'in', teacherIds);
+      if (tDelError) {
+        console.warn("Posible conflicto al eliminar docentes (registros relacionados):", tDelError);
+        // Si falla por integridad, al menos el resto se guardó
+      }
+    } else {
+      await supabase.from('teachers').delete().neq('id', 'NONE');
+    }
     
-    console.log("Sincronización con Supabase finalizada.");
+    console.log("Sincronización finalizada con éxito.");
+    return { success: true };
   } catch (e) {
-    console.error("Excepción crítica al guardar en Supabase:", e);
+    console.error("Fallo en la sincronización con Supabase:", e);
+    return { success: false, error: e };
   }
 };
 
