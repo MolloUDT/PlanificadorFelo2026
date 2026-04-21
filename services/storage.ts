@@ -12,6 +12,8 @@ export const saveData = async (data: AppData): Promise<void> => {
         data.teachers.map(t => ({ 
           id: t.id, 
           name: t.name, 
+          first_name: t.firstName,
+          last_name: t.lastName,
           password: t.password,
           photo_url: t.photoUrl,
           email: t.email,
@@ -123,7 +125,7 @@ export const loadData = async (): Promise<AppData> => {
     const communications = communicationsRes.data || [];
     const centerLogo = settingsRes.data?.center_logo || undefined;
     const adminConfig = settingsRes.data ? {
-        name: settingsRes.data.admin_name || INITIAL_DATA.adminConfig?.name || 'Admin',
+        name: settingsRes.data.admin_name || INITIAL_DATA.adminConfig?.name || 'admin',
         password: settingsRes.data.admin_password || INITIAL_DATA.adminConfig?.password,
         photoUrl: settingsRes.data.admin_photo_url
     } : INITIAL_DATA.adminConfig;
@@ -143,6 +145,8 @@ export const loadData = async (): Promise<AppData> => {
       teachers: teachers.map(t => ({
         id: t.id,
         name: t.name,
+        firstName: t.first_name,
+        lastName: t.last_name,
         password: t.password,
         photoUrl: t.photo_url,
         email: t.email,

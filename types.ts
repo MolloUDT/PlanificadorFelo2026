@@ -15,7 +15,9 @@ export enum EventType {
 
 export interface Teacher {
   id: string;
-  name: string;
+  name: string; // Full name for quick display: Combined firstName + lastName
+  firstName?: string;
+  lastName?: string;
   password?: string; 
   photoUrl?: string;
   email?: string;

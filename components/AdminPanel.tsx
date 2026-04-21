@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { AppData, CycleId, EventType, CourseModule, CalendarEvent, Trimester, Teacher, CommunicationMessage } from '../types';
 import { EVENT_LABELS, EVENT_THEMES, EVENT_COLORS, DEFAULT_LOGO } from '../constants';
 import { Settings, Book, Calendar, LogOut, Plus, Trash2, CheckCircle, Edit, X, Clock, Eye, ChevronDown, ChevronUp, MapPin, AlertTriangle, AlertCircle, FileText, Link as LinkIcon, ClipboardList, Image, Mail, Phone, User, ArrowDownAZ, CalendarDays, TreePine, VenetianMask, Sun, MessageSquare, Users, Save, Send, Reply, Lock, EyeOff, Camera, Upload, RefreshCw, Palette } from 'lucide-react';
@@ -225,9 +225,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onLogout
   const [evTime, setEvTime] = useState('');
 
   // Team State
-  const [newTeacherName, setNewTeacherName] = useState('');
+  const [newTeacherFirstName, setNewTeacherFirstName] = useState('');
+  const [newTeacherLastName, setNewTeacherLastName] = useState('');
   const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
-  const [editTeacherName, setEditTeacherName] = useState('');
+  const [editTeacherFirstName, setEditTeacherFirstName] = useState('');
+  const [editTeacherLastName, setEditTeacherLastName] = useState('');
   const [editTeacherPassword, setEditTeacherPassword] = useState('');
   const [editTeacherPhoto, setEditTeacherPhoto] = useState('');
   const [editTeacherEmail, setEditTeacherEmail] = useState('');
@@ -271,6 +273,24 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onLogout
   const toggleCommGroup = (key: string) => {
     setExpandedCommGroup(expandedCommGroup === key ? null : key);
   };
+
+  // Helper para obtener apellidos para ordenar
+  const getSurnamesForSorting = (teacher: Teacher) => {
+    if (teacher.lastName) return teacher.lastName.toLowerCase();
+    
+    // Fallback para datos antiguos o sin apellidos separados
+    const parts = teacher.name.trim().split(' ');
+    if (parts.length <= 1) return teacher.name.toLowerCase();
+    return parts.slice(1).join(' ').toLowerCase();
+  };
+
+  const sortedTeachers = useMemo(() => {
+    return [...data.teachers].sort((a, b) => {
+        const surnameA = getSurnamesForSorting(a);
+        const surnameB = getSurnamesForSorting(b);
+        return surnameA.localeCompare(surnameB, 'es', { sensitivity: 'base' });
+    });
+  }, [data.teachers]);
 
   const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
       setNotification({ message, type });
@@ -338,16 +358,24 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onLogout
 
   const handleAddTeacher = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTeacherName.trim()) return;
-    const newTeacher: Teacher = { id: `t_${Date.now()}`, name: newTeacherName.trim() };
+    if (!newTeacherFirstName.trim() || !newTeacherLastName.trim()) return;
+    const combinedName = `${newTeacherFirstName.trim()} ${newTeacherLastName.trim()}`;
+    const newTeacher: Teacher = { 
+        id: `t_${Date.now()}`, 
+        name: combinedName,
+        firstName: newTeacherFirstName.trim(),
+        lastName: newTeacherLastName.trim()
+    };
     onUpdate({ ...data, teachers: [...(data.teachers || []), newTeacher] });
-    setNewTeacherName('');
+    setNewTeacherFirstName('');
+    setNewTeacherLastName('');
     showNotification("Profesor añadido");
   };
 
   const handleOpenEditTeacher = (teacher: Teacher) => {
     setEditingTeacher(teacher);
-    setEditTeacherName(teacher.name);
+    setEditTeacherFirstName(teacher.firstName || teacher.name.split(' ')[0] || '');
+    setEditTeacherLastName(teacher.lastName || teacher.name.split(' ').slice(1).join(' ') || '');
     setEditTeacherPassword(teacher.password || '');
     setEditTeacherPhoto(teacher.photoUrl || '');
     setEditTeacherEmail(teacher.email || '');
@@ -357,10 +385,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onLogout
   const handleSaveTeacherChanges = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingTeacher) return;
+    const combinedName = `${editTeacherFirstName.trim()} ${editTeacherLastName.trim()}`;
     const updatedTeachers = data.teachers.map(t => 
       t.id === editingTeacher.id ? { 
         ...t, 
-        name: editTeacherName, 
+        name: combinedName,
+        firstName: editTeacherFirstName.trim(),
+        lastName: editTeacherLastName.trim(),
         password: editTeacherPassword,
         photoUrl: editTeacherPhoto,
         email: editTeacherEmail,
@@ -474,7 +505,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onLogout
         centerLogo: draftLogo,
         adminConfig: {
             ...(data.adminConfig || {name: 'admin', password: 'esperanza2026'}),
-            name: draftAdminName,
+            name: draftAdminName.trim(),
             password: draftAdminPass,
             photoUrl: draftAdminPhoto
         }
@@ -863,17 +894,34 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onLogout
             {activeTab === 'team' && (
                 <div className="max-w-4xl mx-auto w-full h-full flex flex-col overflow-hidden">
                     <div className="bg-slate-50 p-4 border-b flex flex-wrap justify-between items-center rounded-t-2xl gap-4 shrink-0">
-                        <h3 className="font-bold flex items-center gap-2 text-slate-800"><Users className="w-5 h-5 text-emerald-600"/> Equipo Docente</h3>
+                        <h3 className="font-bold flex items-center gap-2 text-slate-800"><Users className="w-5 h-5 text-emerald-600"/> Equipo Educativo</h3>
                         {isSuperAdmin && (
-                        <form onSubmit={handleAddTeacher} className="flex gap-2 w-full md:w-auto">
-                            <input type="text" placeholder="Nuevo docente..." className="flex-1 md:w-64 px-4 py-2 rounded-lg border text-sm bg-white text-slate-800 outline-none focus:border-emerald-500" value={newTeacherName} onChange={e => setNewTeacherName(e.target.value)} />
-                            <button type="submit" className="bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-emerald-700 transition"><Plus className="w-4 h-4"/> Añadir</button>
+                        <form onSubmit={handleAddTeacher} className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+                            <div className="flex gap-2 flex-1">
+                                <input 
+                                    type="text" 
+                                    placeholder="Nombre..." 
+                                    className="w-full md:w-48 px-4 py-2 rounded-lg border text-sm bg-white text-slate-800 outline-none focus:border-emerald-500" 
+                                    value={newTeacherFirstName} 
+                                    onChange={e => setNewTeacherFirstName(e.target.value)} 
+                                    required
+                                />
+                                <input 
+                                    type="text" 
+                                    placeholder="Apellidos..." 
+                                    className="w-full md:w-80 px-4 py-2 rounded-lg border text-sm bg-white text-slate-800 outline-none focus:border-emerald-500" 
+                                    value={newTeacherLastName} 
+                                    onChange={e => setNewTeacherLastName(e.target.value)} 
+                                    required
+                                />
+                            </div>
+                            <button type="submit" className="bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center justify-center gap-2 hover:bg-emerald-700 transition"><Plus className="w-4 h-4"/> Añadir</button>
                         </form>
                         )}
                     </div>
                     <div className="flex-1 overflow-y-auto p-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {data.teachers.map(t => {
+                          {sortedTeachers.map(t => {
                               const canEdit = isSuperAdmin || t.id === currentTeacherId;
                               return (
                               <div key={t.id} className="p-4 bg-white border border-slate-100 rounded-xl flex items-center justify-between shadow-sm transition-all hover:border-emerald-300">
@@ -969,14 +1017,25 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onLogout
                                       />
                                   </div>
 
-                                  <div>
-                                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Nombre Completo</label>
-                                      <input 
-                                          className="w-full p-3 rounded-xl border-2 border-slate-100 text-sm font-bold bg-white text-slate-800 focus:border-emerald-500 outline-none transition" 
-                                          value={editTeacherName} 
-                                          onChange={e => setEditTeacherName(e.target.value)} 
-                                          required
-                                      />
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                      <div>
+                                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Nombre</label>
+                                          <input 
+                                              className="w-full p-3 rounded-xl border-2 border-slate-100 text-sm font-bold bg-white text-slate-800 focus:border-emerald-500 outline-none transition" 
+                                              value={editTeacherFirstName} 
+                                              onChange={e => setEditTeacherFirstName(e.target.value)} 
+                                              required
+                                          />
+                                      </div>
+                                      <div>
+                                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Apellidos</label>
+                                          <input 
+                                              className="w-full p-3 rounded-xl border-2 border-slate-100 text-sm font-bold bg-white text-slate-800 focus:border-emerald-500 outline-none transition" 
+                                              value={editTeacherLastName} 
+                                              onChange={e => setEditTeacherLastName(e.target.value)} 
+                                              required
+                                          />
+                                      </div>
                                   </div>
                                   <div>
                                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Contraseña Personal</label>
@@ -1129,7 +1188,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onLogout
                                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Asignar Docente</label>
                                         <select className="w-full p-4 rounded-xl border-2 border-slate-100 text-sm font-bold bg-white text-slate-800 focus:border-emerald-500 outline-none" value={editModTeacher} onChange={e => setEditModTeacher(e.target.value)}>
                                             <option value="Docente por asignar">Docente por asignar</option>
-                                            {data.teachers.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
+                                            {sortedTeachers.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
                                         </select>
                                     </div>
                                 </>

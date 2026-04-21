@@ -90,9 +90,7 @@ const App: React.FC = () => {
     const adminName = adminConfig?.name || 'admin';
     const adminPass = adminConfig?.password || 'esperanza2026';
 
-    const isAdminNameMatch = 
-      typedTeacherName.trim().toLowerCase() === adminName.toLowerCase() || 
-      typedTeacherName.trim().toLowerCase() === 'admin';
+    const isAdminNameMatch = typedTeacherName.trim() === adminName;
 
     if (isAdminNameMatch && password === adminPass) {
       setIsAdminLoggedIn(true);

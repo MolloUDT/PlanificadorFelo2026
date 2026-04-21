@@ -227,6 +227,33 @@ const TimelineView: React.FC<TimelineViewProps> = ({ teachers, modules, events, 
       { id: 'COMBO', label: 'Ver combo de Curr/Compl/Extraesc' },
   ];
 
+  // Helper para determinar el color del evento basado en el curso y palabras clave (PRL)
+  const getEventColorClasses = (event: CalendarEvent) => {
+    const titleLower = (event.title || '').toLowerCase();
+    const descLower = (event.description || '').toLowerCase();
+    const isPRL = titleLower.includes('prl') || 
+                  titleLower.includes('prevención de riesgos laborales') ||
+                  descLower.includes('prl') || 
+                  descLower.includes('prevención de riesgos laborales');
+
+    if (isPRL) {
+        return 'bg-red-900 text-white border-red-950';
+    }
+
+    if (event.moduleId === 'GLOBAL') {
+        if (event.type === EventType.HOLIDAY) return 'bg-slate-200 text-slate-700 border-slate-300';
+        return EVENT_COLORS[event.type] || 'bg-slate-300 text-slate-700';
+    }
+    
+    const module = modules.find(m => m.id === event.moduleId);
+    if (module?.year === 2) {
+        return 'bg-emerald-200 text-slate-900 border-emerald-300';
+    }
+    
+    // Por defecto o 1er curso: Azul con texto blanco
+    return 'bg-gradient-to-r from-blue-600 to-blue-700 text-white border-blue-800';
+  };
+
   const months = useMemo(() => {
     const m = [];
     const curr = new Date(startDate);
@@ -618,7 +645,7 @@ const TimelineView: React.FC<TimelineViewProps> = ({ teachers, modules, events, 
                                                     <div
                                                         key={event.id}
                                                         onClick={() => setSelectedEvent(event)}
-                                                        className={`absolute rounded-sm shadow-sm hover:shadow-xl hover:z-50 hover:scale-[1.01] transition-all duration-200 cursor-pointer flex flex-col justify-center px-1 overflow-hidden border border-white/20 ${EVENT_COLORS[event.type]} ${isFullHeight ? 'h-full z-10' : 'h-[16%] z-20'}`}
+                                                        className={`absolute rounded-sm shadow-sm hover:shadow-xl hover:z-50 hover:scale-[1.01] transition-all duration-200 cursor-pointer flex flex-col justify-center px-1 overflow-hidden border border-white/20 ${getEventColorClasses(event)} ${isFullHeight ? 'h-full z-10' : 'h-[16%] z-20'}`}
                                                         style={{
                                                             left: `${getPosition(event.startDate)}%`,
                                                             width: `${width}%`,
@@ -738,15 +765,25 @@ const TimelineView: React.FC<TimelineViewProps> = ({ teachers, modules, events, 
       })()}
 
       {/* Modal de Detalles del Evento */}
-      {selectedEvent && (
+      {selectedEvent && (() => {
+        const module = selectedEvent.moduleId !== 'GLOBAL' ? modules.find(m => m.id === selectedEvent.moduleId) : null;
+        const eventClasses = getEventColorClasses(selectedEvent);
+        const isYear2 = module?.year === 2;
+        const isPRL = eventClasses.includes('bg-red-900');
+        
+        return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-md overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-100">
-                <div className={`p-6 ${EVENT_COLORS[selectedEvent.type]} bg-opacity-10 border-b-0`}>
+                <div className={`p-6 ${eventClasses} border-b-0`}>
                     <div className="flex justify-between items-start">
-                        <div className="bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full border border-white/30 text-xs font-bold uppercase tracking-wider mb-3 inline-block shadow-sm">{EVENT_LABELS[selectedEvent.type]}</div>
-                        <button onClick={() => setSelectedEvent(null)} className={`hover:bg-white/20 rounded-full p-1 transition ${selectedEvent.type === EventType.HOLIDAY || selectedEvent.type === EventType.NON_DOCENT ? 'text-slate-500 hover:bg-slate-200' : 'text-white hover:bg-white/20'}`}><X className="w-5 h-5" /></button>
+                        <div className="bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full border border-white/30 text-xs font-bold uppercase tracking-wider mb-3 inline-block shadow-sm">
+                            {isPRL ? 'Seguridad y Salud - ' : (module ? `${module.year}º Curso - ` : '')}{EVENT_LABELS[selectedEvent.type]}
+                        </div>
+                        <button onClick={() => setSelectedEvent(null)} className="hover:bg-white/20 rounded-full p-1 transition"><X className="w-5 h-5" /></button>
                     </div>
-                    <h3 className={`text-2xl font-bold drop-shadow-sm leading-tight ${selectedEvent.type === EventType.HOLIDAY || selectedEvent.type === EventType.NON_DOCENT ? (selectedEvent.type === EventType.NON_DOCENT ? 'text-white' : 'text-slate-800') : 'text-white'}`}>{selectedEvent.title}</h3>
+                    <h3 className={`text-2xl font-bold drop-shadow-sm leading-tight ${isPRL ? 'text-white' : (isYear2 ? 'text-slate-950' : (selectedEvent.moduleId === 'GLOBAL' && selectedEvent.type === EventType.HOLIDAY ? 'text-slate-800' : 'text-white'))}`}>
+                        {selectedEvent.title}
+                    </h3>
                 </div>
                 <div className="p-6 space-y-4">
                     <div className="flex items-start gap-3"><CalendarIcon className="w-5 h-5 text-slate-400 mt-0.5" /><div><p className="text-sm font-semibold text-slate-700">Fechas</p><p className="text-slate-600">{new Date(selectedEvent.startDate).toLocaleDateString()} <span className="mx-2 text-slate-300">|</span> {new Date(selectedEvent.endDate).toLocaleDateString()}</p></div></div>
@@ -764,7 +801,8 @@ const TimelineView: React.FC<TimelineViewProps> = ({ teachers, modules, events, 
                 <div className="bg-slate-50 p-4 border-t border-slate-100 flex justify-end"><button onClick={() => setSelectedEvent(null)} className="px-4 py-2 bg-white border border-slate-300 rounded-lg text-slate-700 text-sm font-medium hover:bg-slate-50 transition">Cerrar</button></div>
             </div>
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 };
