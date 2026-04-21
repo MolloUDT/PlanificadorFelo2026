@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { AppData, CycleId, EventType, CourseModule, CalendarEvent, Trimester, Teacher, CommunicationMessage } from '../types';
 import { EVENT_LABELS, EVENT_THEMES, EVENT_COLORS, DEFAULT_LOGO } from '../constants';
 import { Settings, Book, Calendar, LogOut, Plus, Trash2, CheckCircle, Edit, X, Clock, Eye, ChevronDown, ChevronUp, MapPin, AlertTriangle, AlertCircle, FileText, Link as LinkIcon, ClipboardList, Image, Mail, Phone, User, ArrowDownAZ, CalendarDays, TreePine, VenetianMask, Sun, MessageSquare, Users, Save, Send, Reply, Lock, EyeOff, Camera, Upload, RefreshCw, Palette } from 'lucide-react';
@@ -186,6 +186,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onLogout
   });
 
   const previewMenuRef = useRef<HTMLDivElement>(null);
+  const eventFormRef = useRef<HTMLFormElement>(null);
 
   // Config Form State
   const [yearStart, setYearStart] = useState(data.academicYear.startDate);
@@ -297,15 +298,53 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onLogout
       setTimeout(() => setNotification(null), 3000);
   };
 
+  const resetEventForm = useCallback(() => {
+    setEditingEventId(null); 
+    setEvTitle(''); 
+    const hasMod = isSuperAdmin || (myAllowedModules && myAllowedModules.length > 0);
+    setEvType(hasMod ? EventType.UNIT : EventType.HOLIDAY); 
+    setEvStart(''); 
+    setEvEnd(''); 
+    setEvModule(''); 
+    setEvDesc(''); 
+    setEvLocation(''); 
+    setEvTime('');
+  }, [isSuperAdmin, myAllowedModules]);
+
+  const isEventFormDirty = useMemo(() => {
+    if (!editingEventId) return false;
+    const editingEvent = data.events.find(e => e.id === editingEventId);
+    if (!editingEvent) return false;
+    
+    return evTitle !== editingEvent.title ||
+           evType !== editingEvent.type ||
+           evStart !== editingEvent.startDate ||
+           evEnd !== editingEvent.endDate ||
+           evModule !== editingEvent.moduleId ||
+           evDesc !== (editingEvent.description || '') ||
+           evLocation !== (editingEvent.location || '') ||
+           evTime !== (editingEvent.time || '');
+  }, [editingEventId, data.events, evTitle, evType, evStart, evEnd, evModule, evDesc, evLocation, evTime]);
+
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (previewMenuRef.current && !previewMenuRef.current.contains(event.target as Node)) {
         setShowPreviewMenu(false);
       }
+
+      // Cancelar edición de evento al pulsar fuera (si no hay cambios)
+      if (activeTab === 'events' && editingEventId && eventFormRef.current && !eventFormRef.current.contains(event.target as Node)) {
+        // Ignorar si el click fue en un botón de edición del listado
+        if (!(event.target as HTMLElement).closest('.event-edit-btn')) {
+          if (!isEventFormDirty) {
+            resetEventForm();
+          }
+        }
+      }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  }, [activeTab, editingEventId, isEventFormDirty, resetEventForm]);
 
   const handleUpdateConfig = (e: React.FormEvent) => {
     e.preventDefault();
@@ -640,18 +679,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onLogout
         .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
   };
 
-  const resetEventForm = () => {
-    setEditingEventId(null); 
-    setEvTitle(''); 
-    const hasMod = isSuperAdmin || myAllowedModules.length > 0;
-    setEvType(hasMod ? EventType.UNIT : EventType.HOLIDAY); 
-    setEvStart(''); 
-    setEvEnd(''); 
-    setEvModule(''); 
-    setEvDesc(''); 
-    setEvLocation(''); 
-    setEvTime('');
-  };
 
   const handleEditEvent = (event: CalendarEvent) => {
     setEditingEventId(event.id); setEvTitle(event.title); setEvType(event.type); setEvStart(event.startDate); setEvEnd(event.endDate); setEvModule(event.moduleId); setEvDesc(event.description || ''); setEvLocation(event.location || ''); setEvTime(event.time || '');
@@ -1244,7 +1271,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onLogout
                                                     </div>
                                                     {editable && (
                                                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        <button onClick={() => handleEditEvent(ev)} className="p-2 text-slate-400 hover:text-emerald-600 transition"><Edit className="w-4 h-4"/></button>
+                                                        <button onClick={() => handleEditEvent(ev)} className="p-2 text-slate-400 hover:text-emerald-600 transition event-edit-btn" title="Editar evento"><Edit className="w-4 h-4"/></button>
                                                         <button onClick={() => confirmDeleteEvent(ev)} className="p-2 text-slate-400 hover:text-red-600 transition"><Trash2 className="w-4 h-4"/></button>
                                                     </div>
                                                     )}
@@ -1265,8 +1292,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onLogout
                                     </div>
                                 </div>
                             )}
-                            <form id="event-form" onSubmit={handleFormSubmit} className="bg-white border-2 border-emerald-100 rounded-3xl p-6 space-y-4 shadow-xl">
-                                <h4 className="font-black text-emerald-800 uppercase tracking-tighter text-lg">{editingEventId ? 'Modificar Evento' : 'Nuevo Evento'}</h4>
+                            <form ref={eventFormRef} id="event-form" onSubmit={handleFormSubmit} className="bg-white border-2 border-emerald-100 rounded-3xl p-6 space-y-4 shadow-xl">
+                                <div className="flex justify-between items-center mb-2">
+                                    <h4 className="font-black text-emerald-800 uppercase tracking-tighter text-lg">{editingEventId ? 'Modificar Evento' : 'Nuevo Evento'}</h4>
+                                    {editingEventId && (
+                                        <button type="button" onClick={resetEventForm} className="text-slate-400 hover:text-red-500 transition px-2 py-1 rounded-lg hover:bg-red-50 flex items-center gap-1 text-[10px] uppercase font-bold">
+                                            <X className="w-3 h-3" /> Cancelar
+                                        </button>
+                                    )}
+                                </div>
                                 <div><label className="text-[10px] font-black text-slate-400 uppercase mb-1 block">Módulo asociado</label>
                                     <select required className="w-full p-4 rounded-xl bg-slate-50 border-2 border-slate-100 text-sm font-bold text-slate-800 outline-none focus:border-emerald-500" value={evModule} onChange={e => setEvModule(e.target.value)}>
                                         <option value="">Seleccionar...</option>
