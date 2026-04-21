@@ -13,31 +13,46 @@ export const saveData = async (data: AppData): Promise<{success: boolean, error?
     const commIds = (data.communications || []).map(c => c.id);
 
     // 2. Upserts (Crear o Actualizar) - El orden no importa tanto aquí
-    const { error: tError } = await supabase.from('teachers').upsert(
-      data.teachers.map(t => ({ 
-        id: t.id, name: t.name, first_name: t.firstName, last_name: t.lastName,
-        password: t.password, photo_url: t.photoUrl, email: t.email, phone: t.phone
-      }))
-    );
-    if (tError) throw tError;
+    if (data.teachers.length > 0) {
+      const { error: tError } = await supabase.from('teachers').upsert(
+        data.teachers.map(t => ({ 
+          id: t.id, name: t.name, first_name: t.firstName, last_name: t.lastName,
+          password: t.password, photo_url: t.photoUrl, email: t.email, phone: t.phone
+        }))
+      );
+      if (tError) {
+        console.error("Error upserting teachers:", tError);
+        throw tError;
+      }
+    }
 
-    const { error: mError } = await supabase.from('course_modules').upsert(
-      data.modules.map(m => ({
-        id: m.id, name: m.name, cycle_id: m.cycleId, teacher_name: m.teacherName,
-        year: m.year, pdf_url: m.pdfUrl, evaluation_url: m.evaluationUrl,
-        teacher_photo_url: m.teacherPhotoUrl, teacher_email: m.teacherEmail, teacher_phone: m.teacherPhone
-      }))
-    );
-    if (mError) throw mError;
+    if (data.modules.length > 0) {
+      const { error: mError } = await supabase.from('course_modules').upsert(
+        data.modules.map(m => ({
+          id: m.id, name: m.name, cycle_id: m.cycleId, teacher_name: m.teacherName,
+          year: m.year, pdf_url: m.pdfUrl, evaluation_url: m.evaluationUrl,
+          teacher_photo_url: m.teacherPhotoUrl, teacher_email: m.teacherEmail, teacher_phone: m.teacherPhone
+        }))
+      );
+      if (mError) {
+        console.error("Error upserting modules:", mError);
+        throw mError;
+      }
+    }
 
-    const { error: eError } = await supabase.from('calendar_events').upsert(
-      data.events.map(e => ({
-        id: e.id, module_id: (e.moduleId === 'GLOBAL' || !e.moduleId) ? null : e.moduleId,
-        type: e.type, title: e.title, start_date: e.startDate, end_date: e.endDate,
-        description: e.description, location: e.location, time: e.time
-      }))
-    );
-    if (eError) throw eError;
+    if (data.events.length > 0) {
+      const { error: eError } = await supabase.from('calendar_events').upsert(
+        data.events.map(e => ({
+          id: e.id, module_id: (e.moduleId === 'GLOBAL' || !e.moduleId) ? null : e.moduleId,
+          type: e.type, title: e.title, start_date: e.startDate, end_date: e.endDate,
+          description: e.description, location: e.location, time: e.time
+        }))
+      );
+      if (eError) {
+        console.error("Error upserting events:", eError);
+        throw eError;
+      }
+    }
 
     if (data.communications && data.communications.length > 0) {
       const { error: cError } = await supabase.from('communications').upsert(
@@ -49,11 +64,15 @@ export const saveData = async (data: AppData): Promise<{success: boolean, error?
       if (cError) throw cError;
     }
 
-    const { error: sConfigError } = await supabase.from('app_settings').upsert({
-        id: 1, center_logo: data.centerLogo, admin_name: data.adminConfig?.name,
-        admin_password: data.adminConfig?.password, admin_photo_url: data.adminConfig?.photoUrl
-    });
-    if (sConfigError) throw sConfigError;
+    try {
+      const { error: sConfigError } = await supabase.from('app_settings').upsert({
+          id: 1, center_logo: data.centerLogo, admin_name: data.adminConfig?.name,
+          admin_password: data.adminConfig?.password, admin_photo_url: data.adminConfig?.photoUrl
+      });
+      if (sConfigError) console.warn("Aviso: app_settings no pudo guardarse (posible tabla faltante):", sConfigError.message);
+    } catch (e) {
+      console.warn("Error no crítico en app_settings:", e);
+    }
 
     // 3. Deletions (Eliminar lo que ya no existe) - ORDEN CRÍTICO PARA CLAVES FORÁNEAS
     // Primero eliminamos comunicaciones porque dependen de docentes

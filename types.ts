@@ -28,7 +28,7 @@ export interface CourseModule {
   id: string;
   name: string;
   cycleId: CycleId;
-  teacherName: string;
+  teacherName: string | null;
   year: number; // 1 or 2
   pdfUrl?: string; // Enlace a la Programación
   evaluationUrl?: string; // Enlace al resumen de evaluación

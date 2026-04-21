@@ -23,7 +23,7 @@ const App: React.FC = () => {
   const [currentTeacherId, setCurrentTeacherId] = useState<string | null>(null);
   const [showLoginWarning, setShowLoginWarning] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [syncError, setSyncError] = useState(false);
+  const [syncError, setSyncError] = useState<string | boolean | null>(null);
   
   // Estado elevado para persistir la pestaña del AdminPanel
   const [adminActiveTab, setAdminActiveTab] = useState<AdminTab>('config');
@@ -50,12 +50,12 @@ const App: React.FC = () => {
         setIsSyncing(true);
         const result = await saveData(data);
         setIsSyncing(false);
-        setSyncError(!result.success);
         
         if (!result.success) {
-            console.error("Error al sincronizar con Supabase. Los cambios locales se mantienen.");
+            console.error("Error al sincronizar con Supabase:", result.error);
+            setSyncError(result.error?.message || "Error desconocido en base de datos");
         } else {
-            setSyncError(false);
+            setSyncError(null);
         }
       }, 1000); // Debounce de 1 segundo para evitar saturar Supabase
 

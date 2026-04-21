@@ -14,7 +14,7 @@ interface AdminPanelProps {
   onTabChange: (tab: AdminTab) => void;
   currentTeacherId?: string | null;
   isSyncing?: boolean;
-  syncError?: boolean;
+  syncError?: string | boolean | null;
 }
 
 interface ModalConfig {
@@ -565,15 +565,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onLogout
 const confirmDeleteTeacher = (id: string) => {
     const teacher = data.teachers.find(t => t.id === id);
     setModalConfig({
-        isOpen: true, type: 'danger', title: '¿Eliminar profesor?', message: `Se eliminará a ${teacher?.name} y todos sus mensajes asociados.`, confirmText: 'Eliminar',
+        isOpen: true, type: 'danger', title: '¿Eliminar profesor?', message: `Se eliminará a ${teacher?.name}, se borrarán sus mensajes y se desasignará de sus módulos actuales.`, confirmText: 'Eliminar',
         onConfirm: () => {
             onUpdate({ 
                 ...data, 
                 teachers: data.teachers.filter(t => t.id !== id),
-                communications: (data.communications || []).filter(c => c.senderId !== id && c.receiverId !== id)
+                communications: (data.communications || []).filter(c => c.senderId !== id && c.receiverId !== id),
+                modules: data.modules.map(m => m.teacherName === teacher?.name ? { ...m, teacherName: null } : m)
             });
             setModalConfig(p => ({...p, isOpen: false}));
-            showNotification("Profesor eliminado y mensajes asociados limpiados", "error");
+            showNotification("Profesor eliminado y vínculos limpiados", "error");
         }
     });
   };
@@ -784,9 +785,14 @@ const confirmDeleteTeacher = (id: string) => {
                  </div>
              )}
              {syncError && (
-                 <div className="flex items-center gap-1.5 px-2 py-1 bg-red-50 text-red-600 rounded-lg border border-red-100">
+                 <div className="flex items-center gap-1.5 px-2 py-1 bg-red-50 text-red-600 rounded-lg border border-red-100 group relative">
                     <AlertCircle className="w-3 h-3"/>
                     <span className="text-[9px] font-black uppercase tracking-widest">Error de Sincronización</span>
+                    {typeof syncError === 'string' && (
+                        <div className="absolute top-full right-0 mt-2 p-2 bg-red-900 text-white text-[9px] font-bold rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap">
+                            {syncError}
+                        </div>
+                    )}
                  </div>
              )}
              <div className="relative" ref={previewMenuRef}>
@@ -1167,7 +1173,7 @@ const confirmDeleteTeacher = (id: string) => {
                                         )}
                                         <div className="min-w-0">
                                             <h4 className="font-bold text-slate-800 leading-tight text-xs truncate" title={m.name}>{m.name}</h4>
-                                            <p className="text-[10px] text-slate-500 truncate">Docente: <span className="font-bold text-blue-700">{m.teacherName}</span></p>
+                                            <p className="text-[10px] text-slate-500 truncate">Docente: <span className="font-bold text-blue-700">{m.teacherName || 'Docente por asignar'}</span></p>
                                         </div>
                                     </div>
                                     {(isSuperAdmin || m.teacherName === currentTeacherName) && (
@@ -1203,7 +1209,7 @@ const confirmDeleteTeacher = (id: string) => {
                                         )}
                                         <div className="min-w-0">
                                             <h4 className="font-bold text-slate-800 leading-tight text-xs truncate" title={m.name}>{m.name}</h4>
-                                            <p className="text-[10px] text-slate-500 truncate">Docente: <span className="font-bold text-emerald-700">{m.teacherName}</span></p>
+                                            <p className="text-[10px] text-slate-500 truncate">Docente: <span className="font-bold text-emerald-700">{m.teacherName || 'Docente por asignar'}</span></p>
                                         </div>
                                     </div>
                                     {(isSuperAdmin || m.teacherName === currentTeacherName) && (
@@ -1231,8 +1237,8 @@ const confirmDeleteTeacher = (id: string) => {
                                     <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Nombre del módulo</label><input className="w-full p-4 rounded-xl border-2 border-slate-100 text-sm font-bold bg-white text-slate-800 focus:border-emerald-500 outline-none transition" value={editModName} onChange={e => setEditModName(e.target.value)} /></div>
                                     <div>
                                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Asignar Docente</label>
-                                        <select className="w-full p-4 rounded-xl border-2 border-slate-100 text-sm font-bold bg-white text-slate-800 focus:border-emerald-500 outline-none" value={editModTeacher} onChange={e => setEditModTeacher(e.target.value)}>
-                                            <option value="Docente por asignar">Docente por asignar</option>
+                                        <select className="w-full p-4 rounded-xl border-2 border-slate-100 text-sm font-bold bg-white text-slate-800 focus:border-emerald-500 outline-none" value={editModTeacher || ''} onChange={e => setEditModTeacher(e.target.value || null)}>
+                                            <option value="">Docente por asignar</option>
                                             {sortedTeachers.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
                                         </select>
                                     </div>
