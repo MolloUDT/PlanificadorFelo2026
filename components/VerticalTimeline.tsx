@@ -240,6 +240,10 @@ const TimelineView: React.FC<TimelineViewProps> = ({ teachers, modules, events, 
         return 'bg-red-900 text-white border-red-950';
     }
 
+    if (event.type === EventType.EVALUATION) {
+        return EVENT_COLORS[EventType.EVALUATION];
+    }
+
     if (event.moduleId === 'GLOBAL') {
         if (event.type === EventType.HOLIDAY) return 'bg-slate-200 text-slate-700 border-slate-300';
         return EVENT_COLORS[event.type] || 'bg-slate-300 text-slate-700';
@@ -707,6 +711,7 @@ const TimelineView: React.FC<TimelineViewProps> = ({ teachers, modules, events, 
                         {photo ? <img src={photo} alt={viewingTeacher.teacherName} className="w-full h-full object-cover" onError={() => handleImageError(viewingTeacher.id)} /> : <User className="w-10 h-10" />}
                     </div>
                     <div className="text-center mt-4 mb-6">
+                        <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">Docente:</p>
                         {(() => {
                             const { name, surname } = getTeacherNameParts(viewingTeacher.teacherName);
                             return (<><h3 className="text-2xl font-black text-slate-800 leading-tight tracking-tight">{name}</h3><p className="text-lg font-light text-slate-500 uppercase tracking-wide mt-1">{surname}</p></>);

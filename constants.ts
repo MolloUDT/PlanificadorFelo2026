@@ -6,7 +6,7 @@ export const EVENT_COLORS: Record<EventType, string> = {
   [EventType.CURRICULAR]: 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white border-emerald-700',
   [EventType.COMPLEMENTARY]: 'bg-gradient-to-r from-amber-400 to-amber-500 text-white border-amber-600',
   [EventType.EXTRACURRICULAR]: 'bg-gradient-to-r from-purple-500 to-purple-600 text-white border-purple-700',
-  [EventType.EVALUATION]: 'bg-gradient-to-r from-rose-500 to-rose-600 text-white border-rose-700',
+  [EventType.EVALUATION]: 'bg-red-600 text-white border-red-800',
   [EventType.HOLIDAY]: 'bg-slate-300 text-slate-700 border-slate-400',
   [EventType.NON_DOCENT]: 'bg-slate-950 text-white border-black', // Color muy oscuro/negro
 };
@@ -27,7 +27,7 @@ export const EVENT_THEMES: Record<EventType, { bg: string; border: string; text:
   [EventType.CURRICULAR]: { bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-900', ring: 'focus:ring-emerald-500', titleColor: 'text-emerald-700' },
   [EventType.COMPLEMENTARY]: { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-900', ring: 'focus:ring-amber-500', titleColor: 'text-amber-700' },
   [EventType.EXTRACURRICULAR]: { bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-900', ring: 'focus:ring-purple-500', titleColor: 'text-purple-700' },
-  [EventType.EVALUATION]: { bg: 'bg-rose-50', border: 'border-rose-200', text: 'text-rose-900', ring: 'focus:ring-rose-500', titleColor: 'text-rose-700' },
+  [EventType.EVALUATION]: { bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-900', ring: 'focus:ring-red-500', titleColor: 'text-red-700' },
   [EventType.HOLIDAY]: { bg: 'bg-slate-100', border: 'border-slate-300', text: 'text-slate-800', ring: 'focus:ring-slate-500', titleColor: 'text-slate-700' },
   [EventType.NON_DOCENT]: { bg: 'bg-slate-900', border: 'border-slate-950', text: 'text-white', ring: 'focus:ring-black', titleColor: 'text-slate-100' },
 };
