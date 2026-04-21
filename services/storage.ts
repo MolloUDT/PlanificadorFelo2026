@@ -4,9 +4,10 @@ import { supabase } from '../lib/supabase';
 
 export const saveData = async (data: AppData): Promise<void> => {
   try {
-    console.log("Iniciando guardado en Supabase...");
+    console.log("Iniciando guardado sincronizado en Supabase...");
 
-    // 1. Guardar Docentes (Upsert)
+    // --- 1. Sincronizar Docentes ---
+    const teacherIds = data.teachers.map(t => t.id);
     if (data.teachers.length > 0) {
       const { error: tError } = await supabase.from('teachers').upsert(
         data.teachers.map(t => ({ 
@@ -21,9 +22,15 @@ export const saveData = async (data: AppData): Promise<void> => {
         }))
       );
       if (tError) console.error("Error upserting teachers:", tError);
+      
+      const { error: tDelError } = await supabase.from('teachers').delete().not('id', 'in', teacherIds);
+      if (tDelError) console.error("Error cleaning up teachers:", tDelError);
+    } else {
+      await supabase.from('teachers').delete().neq('id', 'NONE');
     }
 
-    // 2. Guardar Módulos
+    // --- 2. Sincronizar Módulos ---
+    const moduleIds = data.modules.map(m => m.id);
     if (data.modules.length > 0) {
       const { error: mError } = await supabase.from('course_modules').upsert(
         data.modules.map(m => ({
@@ -40,9 +47,15 @@ export const saveData = async (data: AppData): Promise<void> => {
         }))
       );
       if (mError) console.error("Error upserting modules:", mError);
+
+      const { error: mDelError } = await supabase.from('course_modules').delete().not('id', 'in', moduleIds);
+      if (mDelError) console.error("Error cleaning up modules:", mDelError);
+    } else {
+      await supabase.from('course_modules').delete().neq('id', 'NONE');
     }
 
-    // 3. Guardar Eventos
+    // --- 3. Sincronizar Eventos ---
+    const eventIds = data.events.map(e => e.id);
     if (data.events.length > 0) {
        const { error: eError } = await supabase.from('calendar_events').upsert(
          data.events.map(e => ({
@@ -58,9 +71,15 @@ export const saveData = async (data: AppData): Promise<void> => {
          }))
        );
        if (eError) console.error("Error upserting events:", eError);
+
+       const { error: eDelError } = await supabase.from('calendar_events').delete().not('id', 'in', eventIds);
+       if (eDelError) console.error("Error cleaning up events:", eDelError);
+    } else {
+       await supabase.from('calendar_events').delete().neq('id', 'NONE');
     }
 
-    // 4. Guardar Comunicaciones
+    // --- 4. Sincronizar Comunicaciones ---
+    const commIds = (data.communications || []).map(c => c.id);
     if (data.communications && data.communications.length > 0) {
       const { error: cError } = await supabase.from('communications').upsert(
         data.communications.map(c => ({
@@ -74,9 +93,14 @@ export const saveData = async (data: AppData): Promise<void> => {
         }))
       );
       if (cError) console.error("Error upserting communications:", cError);
+
+      const { error: cDelError } = await supabase.from('communications').delete().not('id', 'in', commIds);
+      if (cDelError) console.error("Error cleaning up communications:", cDelError);
+    } else if (data.communications) {
+      await supabase.from('communications').delete().neq('id', 'NONE');
     }
 
-    // 5. Guardar Configuración General (Logo y Admin)
+    // --- 5. Guardar Configuración General (Logo y Admin) ---
     const { error: sConfigError } = await supabase.from('app_settings').upsert({
         id: 1,
         center_logo: data.centerLogo,
@@ -86,7 +110,7 @@ export const saveData = async (data: AppData): Promise<void> => {
     });
     if (sConfigError) console.error("Error upserting app_settings:", sConfigError);
     
-    console.log("Proceso de guardado finalizado.");
+    console.log("Sincronización con Supabase finalizada.");
   } catch (e) {
     console.error("Excepción crítica al guardar en Supabase:", e);
   }
@@ -123,18 +147,21 @@ export const loadData = async (): Promise<AppData> => {
     const modules = modulesRes.data || [];
     const events = eventsRes.data || [];
     const communications = communicationsRes.data || [];
-    const centerLogo = settingsRes.data?.center_logo || undefined;
-    const adminConfig = settingsRes.data ? {
-        name: settingsRes.data.admin_name || INITIAL_DATA.adminConfig?.name || 'admin',
-        password: settingsRes.data.admin_password || INITIAL_DATA.adminConfig?.password,
-        photoUrl: settingsRes.data.admin_photo_url
-    } : INITIAL_DATA.adminConfig;
+    const settings = settingsRes.data;
 
-    // Verificación crítica: Si no hay teachers, es muy probable que la DB esté vacía o haya un error de conexión/RLS
-    if (teachers.length === 0) {
-      console.warn("No se encontraron docentes en la DB. Posible base de datos vacía. Usando INITIAL_DATA.");
+    // Verificación de base de datos vacía / inicialización
+    // Solo usamos INITIAL_DATA si no hay absolutamente nada en la DB (ni docentes, ni módulos, ni configuración)
+    if (teachers.length === 0 && modules.length === 0 && !settings) {
+      console.warn("Base de datos vacía o no inicializada. Usando INITIAL_DATA.");
       return INITIAL_DATA;
     }
+
+    const centerLogo = settings?.center_logo || undefined;
+    const adminConfig = settings ? {
+        name: settings.admin_name || INITIAL_DATA.adminConfig?.name || 'admin',
+        password: settings.admin_password || INITIAL_DATA.adminConfig?.password,
+        photoUrl: settings.admin_photo_url
+    } : INITIAL_DATA.adminConfig;
 
     console.log(`Carga exitosa: ${teachers.length} docentes, ${modules.length} módulos, ${events.length} eventos.`);
 
