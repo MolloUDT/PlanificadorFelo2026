@@ -733,6 +733,21 @@ const confirmDeleteTeacher = (id: string) => {
 
   const canEditEvent = (ev: CalendarEvent) => {
       if (isSuperAdmin) return true;
+      
+      // Prohibir que docentes editen o borren los periodos oficiales (Navidad, Carnaval, Semana Santa)
+      const protectedIds = ['global_christmas', 'global_carnival', 'global_easter'];
+      if (protectedIds.includes(ev.id)) return false;
+
+      // Por seguridad extra, si es global y el título contiene palabras clave, también bloqueamos
+      const titleLower = (ev.title || '').toLowerCase();
+      if (ev.moduleId === 'GLOBAL' && (
+          titleLower.includes('navidad') || 
+          titleLower.includes('semana santa') || 
+          titleLower.includes('carnaval')
+      )) {
+          return false;
+      }
+
       if (ev.moduleId === 'GLOBAL') return true;
       const mod = data.modules.find(m => m.id === ev.moduleId);
       return mod?.teacherName === currentTeacherName;
