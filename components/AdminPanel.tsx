@@ -368,8 +368,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ data, onUpdate, onLogout
         else updatedEvents.push(eventData);
     };
     if (xmasStart && xmasEnd) syncGlobalEvent('global_christmas', 'Vacaciones de Navidad', xmasStart, xmasEnd);
+    else updatedEvents = updatedEvents.filter(ev => ev.id !== 'global_christmas');
+
     if (carnivalStart && carnivalEnd) syncGlobalEvent('global_carnival', 'Carnavales', carnivalStart, carnivalEnd);
+    else updatedEvents = updatedEvents.filter(ev => ev.id !== 'global_carnival');
+
     if (easterStart && easterEnd) syncGlobalEvent('global_easter', 'Semana Santa', easterStart, easterEnd);
+    else updatedEvents = updatedEvents.filter(ev => ev.id !== 'global_easter');
+
     onUpdate({ ...data, academicYear: updatedConfig, events: updatedEvents });
     showNotification("Configuración actualizada");
   };
@@ -672,7 +678,12 @@ const confirmDeleteTeacher = (id: string) => {
 
   const getGroupedEvents = () => {
     const grouped: Record<string, CalendarEvent[]> = {};
+    const protectedIds = ['global_christmas', 'global_carnival', 'global_easter'];
+
     data.events.forEach(ev => {
+      // Ocultamos los festivos oficiales de la lista de gestión de eventos
+      if (protectedIds.includes(ev.id)) return;
+
       const module = ev.moduleId === 'GLOBAL' ? 'Festivos / Libre disposición' : (data.modules.find(m => m.id === ev.moduleId)?.name || 'Sin Módulo');
       if (!grouped[module]) grouped[module] = [];
       grouped[module].push(ev);
